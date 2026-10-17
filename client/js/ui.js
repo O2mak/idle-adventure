@@ -1,5 +1,5 @@
 ﻿// 화면 UI (HUD, 탭 패널, 입력 처리, PiP, 장비 칸/툴팁)
-const UI = { rt: null, tab: 'growth', qty: 1, lastHtml: '', lastLog: '', onChange: null, pipWin: null, sel: null, online: false, season: null };
+const UI = { rt: null, tab: 'growth', qty: (() => { try { const q = localStorage.getItem('idlegame_qty'); return q === 'max' ? 'max' : [1, 10, 100].includes(Number(q)) ? Number(q) : 1; } catch (e) { return 1; } })(), lastHtml: '', lastLog: '', onChange: null, pipWin: null, sel: null, online: false, season: null };
 // [키, 이름, 아이콘, 위치] 위치: main=위쪽 큰 탭(캐릭터 키우기), dock=아래쪽 메뉴(모험/랭킹/영구/설정)
 const TABS = [['growth', '성장', 'growth', 'main'], ['equip', '장비', 'hat', 'main'], ['skills', '스킬', 'star', 'main'], ['stage', '스테이지', 'flag', 'dock'], ['endless', '무한', 'tower', 'dock'], ['perm', '영구', 'gem', 'dock'], ['set', '설정', 'gear', 'dock']];
 const tabLabel = (t, dot) => mi(t[2]) + `<span>${t[1]}</span>` + (dot ? '<i class="dot"></i>' : '');
@@ -165,7 +165,7 @@ function uiAct(act) {
   const [a, b, c] = act.split(':');
   switch (a) {
     case 'tab': UI.tab = b; break;
-    case 'qty': UI.qty = b === 'max' ? 'max' : Number(b); break;
+    case 'qty': UI.qty = b === 'max' ? 'max' : Number(b); try { localStorage.setItem('idlegame_qty', String(UI.qty)); } catch (e) {} break;
     case 'stat': buyStat(s, b, UI.qty); refresh(rt); break;
     case 'up': buyUp(s, b, UI.qty); break;
     case 'enh': buyEnh(s, b, UI.qty); refresh(rt); break;
@@ -260,7 +260,7 @@ function uiAct(act) {
 
 // ---------- 패널 HTML ----------
 function qtyBar() {
-  return `<div class="qty">${[1, 10, 'max'].map((q) =>
+  return `<div class="qty">${[1, 10, 100, 'max'].map((q) =>
     `<button class="chip ${UI.qty === q ? 'on' : ''}" data-act="qty:${q}">${q === 'max' ? '최대' : '×' + q}</button>`).join('')}</div>`;
 }
 
