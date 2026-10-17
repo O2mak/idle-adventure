@@ -150,6 +150,7 @@
     if (d.rolled) msg(rt, `새 시즌이 시작되었어요! (${d.season.name}) 영구 포인트와 닉네임은 이어집니다.`, 'ok');
     showReward();
     if (!rt.save.animalLocked) openAnimalPick();   // 새 시즌: 동물을 다시 고름
+    else if (rt.save.tickets > 0) setTimeout(() => uiAct('roulette'), 500);   // 접속하면 룰렛부터
   }
 
   // 지난 시즌 무한 모드 순위 보상 알림 (한 번 보여준 뒤 지움)

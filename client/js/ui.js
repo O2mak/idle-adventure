@@ -1,4 +1,4 @@
-﻿// 화면 UI (HUD, 탭 패널, 입력 처리, PiP, 장비 칸/툴팁)
+// 화면 UI (HUD, 탭 패널, 입력 처리, PiP, 장비 칸/툴팁)
 const UI = { rt: null, tab: 'growth', qty: (() => { try { const q = localStorage.getItem('idlegame_qty'); return q === 'max' ? 'max' : [1, 10, 100].includes(Number(q)) ? Number(q) : 1; } catch (e) { return 1; } })(), lastHtml: '', lastLog: '', onChange: null, pipWin: null, sel: null, online: false, season: null };
 // [키, 이름, 아이콘, 위치] 위치: main=위쪽 큰 탭(캐릭터 키우기), dock=아래쪽 메뉴(모험/랭킹/영구/설정)
 const TABS = [['growth', '성장', 'growth', 'main'], ['equip', '장비', 'hat', 'main'], ['skills', '스킬', 'star', 'main'], ['stage', '스테이지', 'flag', 'dock'], ['endless', '무한', 'tower', 'dock'], ['perm', '영구', 'gem', 'dock'], ['set', '설정', 'gear', 'dock']];
@@ -41,7 +41,7 @@ function uiInit(rt) {
   document.addEventListener('keydown', (ev) => {
     if (ev.target.tagName === 'INPUT' || ev.ctrlKey || ev.altKey) return;
     if (ev.key >= '1' && ev.key <= '3') castSkill(UI.rt, Number(ev.key) - 1);
-    else if (ev.key === 'm' || ev.key === 'M') uiAct('manual');
+    else if (ev.key === 'b' || ev.key === 'B') uiAct('bossskill');
     else if (ev.key === 'l' || ev.key === 'L') uiAct('lock');
   });
   // 미니(펫) 모드에서 캐릭터를 누르면 전체 화면으로 (설정에서 끌 수 있음)
@@ -172,7 +172,7 @@ function uiAct(act) {
     case 'skill': buySkill(s, Number(b), UI.qty); break;
     case 'cast': castSkill(rt, Number(b)); break;
     case 'lock': s.lock = !s.lock; break;
-    case 'manual': s.bossManual = !s.bossManual; break;
+    case 'bossskill': castBossSkill(rt); break;
     case 'mode':
       document.body.className = 'mode-' + b;
       try { localStorage.setItem('idlegame_mode', b); } catch (e) { /* 무시 */ }
@@ -456,7 +456,7 @@ function panelStage() {
     }).join('') + '<button class="chip" data-act="chap:next">▶</button></div>';
   const state = !open ? '잠김' : s.clearedRegions.includes(r) ? '클리어' : '진행 중';
   h += `<div class="chapcard"><img class="monimg" src="${monUrl(r)}" alt=""><div class="chaptxt"><b>${r}장 · ${esc(rg.name)}</b><small>${state}${s.region === r && !UI.rt.endless ? ' · 지금 여기서 사냥 중' : ''}</small></div></div>`;
-  h += `<div class="row"><div class="rn">라운드 고정<small>${s.lock ? '켜짐 — 같은 라운드를 계속 반복해요. 꺼야 클리어 후 다음 라운드로 넘어가요.' : '꺼짐 — 클리어하면 자동으로 다음 라운드로 넘어가요.'}</small></div><button class="chip ${s.lock ? 'on' : ''}" data-act="lock">${s.lock ? '켜짐' : '꺼짐'}</button></div>`;
+  h += `<p class="note">전투 화면 오른쪽 아래의 자물쇠 버튼으로 같은 라운드를 계속 반복할 수 있어요. (지금: ${s.lock ? '반복 중' : '다음 라운드로 진행'})</p>`;
   h += '<div class="stagegrid">';
   for (let rd = 1; rd <= CFG.roundsPerRegion; rd++) {
     const cur = s.region === r && s.round === rd && !UI.rt.endless, ok = canEnter(s, r, rd), boss = rd === CFG.roundsPerRegion;
@@ -572,7 +572,7 @@ function panelSettings() {
     `<div class="row"><span class="rn">배경음<small>지역마다 다른 잔잔한 음악</small></span><button class="chip ${Sound.bgmOn ? 'on' : ''}" data-act="bgm">${Sound.bgmOn ? '켜짐' : '꺼짐'}</button></div>` +
     `<div class="row"><span class="rn">전체 음량</span><input id="volRange" type="range" min="0" max="100" value="${Math.round(Sound.vol * 100)}"></div>` +
     feedbackPanel() +
-    `<h3>단축키</h3><p class="note">1·2·3 스킬 사용 · M 보스 수동 · L 라운드 고정</p>` +
+    `<h3>단축키</h3><p class="note">1·2·3 스킬 사용 · B 보스 전용 스킬 · L 라운드 고정</p>` +
     (UI.online
       ? `<h3>계정</h3><div class="row acct"><span class="rn">비밀번호 변경<small>현재 비밀번호와 새 비밀번호</small></span><input id="pwOld" type="password" placeholder="현재" maxlength="100"><input id="pwNew" type="password" placeholder="새 비밀번호" maxlength="100"><button class="chip" data-act="pwchange">변경</button></div>` +
         `<div class="row"><span class="rn">로그아웃<small>다른 기기에서 다시 로그인할 수 있어요</small></span><button class="chip" data-act="logout">로그아웃</button></div>`
@@ -582,11 +582,17 @@ function panelSettings() {
 // ---------- 룰렛 ----------
 const RL_ICON = { exp: 'star', gold: 'coin', drop: 'gift' };
 UI.spinning = false;
-function renderRoulette(winIdx, onIdx) {
+// 슬롯 릴: 위아래로 주르륵 돌다가 천천히 멈춤. 가운데 칸이 결과
+const RL_H = 58;
+function rlItem(g, win) { return `<div class="ritem ${g.kind}${win ? ' win' : ''}">${mi(RL_ICON[g.kind])}<b>${CFG.roulette.kinds[g.kind]} ×${g.mul}</b><small>${Math.round(g.sec / 60)}분</small></div>`; }
+function renderRoulette() {
   const s = UI.rt.save, R = CFG.roulette;
   $('rlTickets').textContent = `티켓 ${s.tickets}개`;
-  $('rlWheel').innerHTML = R.segments.map((g, i) =>
-    `<div class="seg ${i === onIdx ? 'on' : ''} ${i === winIdx ? 'win' : ''}">${mi(RL_ICON[g.kind])}<b>${R.kinds[g.kind]} ×${g.mul}</b>${Math.round(g.sec / 60)}분</div>`).join('');
+  if (!$('rlWheel').firstChild) {   // 처음 열었을 때: 멈춰 있는 릴
+    const prev = R.segments[R.segments.length - 1], cur = R.segments[0], next = R.segments[1];
+    $('rlWheel').innerHTML = `<div class="reelwin"><div class="reel" id="rlReel">${rlItem(prev)}${rlItem(cur)}${rlItem(next)}</div><div class="reelmark"></div></div>`;
+    UI.rlLast = cur;
+  }
   $('rlSpin').disabled = UI.spinning || s.tickets < 1;
 }
 // 시즌 시작 때 동물 고르기 (고르면 그 시즌 동안 바꿀 수 없음)
@@ -609,18 +615,23 @@ function rouletteAct(what) {
   if (what !== 'spin' || UI.spinning) return;
   const r = spinRoulette(UI.rt);
   if (!r) return;
-  UI.spinning = true; $('rlResult').textContent = '';
-  const n = CFG.roulette.segments.length, total = 3 * n + r.idx;   // 세 바퀴 돌고 결과 칸에서 멈춤
-  let i = 0;
-  (function tick() {
-    renderRoulette(null, i % n);
-    if (i >= total) {
-      UI.spinning = false; renderRoulette(r.idx);
-      $('rlResult').textContent = `${CFG.roulette.kinds[r.seg.kind]} ×${r.seg.mul} (${Math.round(r.seg.sec / 60)}분) 획득!`;
-      return;
-    }
-    i++; setTimeout(tick, 60 + Math.pow(i / total, 3) * 340);
-  })();
+  UI.spinning = true; $('rlResult').textContent = ''; $('rlSpin').disabled = true;
+  const segs = CFG.roulette.segments, STOP = 36;
+  const strip = Array.from({ length: STOP + 2 }, () => segs[Math.floor(Math.random() * segs.length)]);
+  strip[1] = UI.rlLast || segs[0]; strip[STOP] = r.seg;   // 시작 때 보이던 칸에서 출발해서, 결과 칸에서 멈춤
+  const reel = $('rlReel');
+  reel.style.transition = 'none'; reel.style.transform = 'translateY(0)';
+  reel.innerHTML = strip.map((g, i) => rlItem(g, false)).join('');
+  void reel.offsetHeight;
+  reel.style.transition = 'transform 3.6s cubic-bezier(.08,.7,.12,1)';
+  reel.style.transform = `translateY(${-(STOP - 1) * RL_H}px)`;
+  sfx(UI.rt, 'rare');
+  setTimeout(() => {
+    UI.spinning = false; UI.rlLast = r.seg;
+    reel.children[STOP].classList.add('win');
+    $('rlResult').textContent = `${CFG.roulette.kinds[r.seg.kind]} ×${r.seg.mul} (${Math.round(r.seg.sec / 60)}분) 획득!`;
+    renderRoulette();
+  }, 3700);
 }
 
 // ---------- 보상형 광고 ----------
@@ -684,7 +695,7 @@ function uiUpdate() {
   const buffs = ['exp', 'gold', 'drop'].filter((k) => s.buff[k].sec > 0).map((k) => `${CFG.roulette.kinds[k]} ×${s.buff[k].mul} ${Math.floor(s.buff[k].sec / 60)}:${String(Math.floor(s.buff[k].sec % 60)).padStart(2, '0')}`);
   $('btnRoulette').textContent = `룰렛 ${s.tickets}`;
   $('btnRoulette').classList.toggle('ready', s.tickets > 0);
-  $('btnAd').textContent = `광고 보상 ${adsLeft(s)}/${CFG.ads.perDay}`;
+  $('btnAd').textContent = `광고 보고 보너스 받기 (${adsLeft(s)}/${CFG.ads.perDay})`;
   $('btnAd').classList.toggle('ready', adsLeft(s) > 0);
   $('btnAd').style.display = CFG.ads.enabled ? '' : 'none';
   if (UI.season) {
@@ -726,9 +737,12 @@ function uiUpdate() {
 
   $('btnSound').classList.toggle('on', Sound.sfxOn || Sound.bgmOn);
   $('btnSound').textContent = (Sound.sfxOn || Sound.bgmOn) ? '소리 켬' : '소리 끔';
-  $('btnLock').classList.toggle('on', s.lock);
-  $('btnManual').classList.toggle('on', s.bossManual);
-  $('btnManual').textContent = s.bossManual ? '보스 수동: 켜짐' : '보스 수동';
+  $('hudLock').classList.toggle('on', s.lock);
+  $('hudLockTxt').textContent = s.lock ? '반복' : '진행';
+  $('lockShackle').setAttribute('d', s.lock ? 'M7 11V8a5 5 0 0 1 10 0v3' : 'M7 11V8a5 5 0 0 1 9.5-2.2');
+  const bs = bossSkillOf(s), bsOn = !!bs && boss && !rt.endless && s.level >= bs.unlock;
+  $('btnBossSkill').style.display = bsOn ? '' : 'none';
+  if (bsOn) { $('btnBossSkill').textContent = rt.bossSkillUsed ? bs.name + ' (사용함)' : '⚡ ' + bs.name; $('btnBossSkill').disabled = !!rt.bossSkillUsed; $('btnBossSkill').classList.toggle('glow', !rt.bossSkillUsed && rt.weak); }
   document.querySelectorAll('#topbar .chip[data-act^="mode"]').forEach((b) => b.classList.toggle('on', 'mode-' + b.dataset.act.split(':')[1] === document.body.className));
 
   updateInfo(rt);

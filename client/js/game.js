@@ -463,7 +463,7 @@ function refresh(rt) {
 
 function resetRound(rt) {
   rt.enemies = []; rt.kills = 0; rt.spawned = 0; rt.spawnT = 0.3;
-  rt.bossClock = 0; rt.bossLeft = CFG.bossTime; rt.weak = false; rt.floorClock = 0;
+  rt.bossClock = 0; rt.bossLeft = CFG.bossTime; rt.weak = false; rt.bossSkillUsed = false; rt.floorClock = 0;
   rt.gs = {}; rt.poison = null; rt.silenceLeft = 0; rt.shielded = false; rt.reflecting = false; rt.gimMsg = '';
 }
 
@@ -545,6 +545,24 @@ function castSkill(rt, i) {
   return true;
 }
 
+// 보스 전용 스킬: 보스전 중 한 번만. 보스 약점이 드러났을 때 쓰면 피해 x약점 배율
+function bossSkillOf(s) { return CFG.bossSkills[s.weaponType]; }
+function bossSkillReady(rt) {
+  const s = rt.save, b = bossSkillOf(s);
+  return !!b && !rt.endless && !!curBoss(rt) && !rt.bossSkillUsed && s.level >= b.unlock;
+}
+function castBossSkill(rt) {
+  if (!bossSkillReady(rt)) return false;
+  const s = rt.save, b = bossSkillOf(s), boss = rt.enemies.find((e) => e.boss);
+  if (!boss) return false;
+  const dmg = rt.d.main * CFG.classInfo[s.weaponType].skill * b.mult * (1 + CFG.skillUp.per * skillLevelOf(s));
+  if (b.fx) proj(rt, b.fx, boss.x, { hits: b.hits });
+  for (let h = 0; h < b.hits; h++) dealDamage(rt, boss, dmg, h === 0 ? b.name : '');
+  rt.bossSkillUsed = true; rt.castAt = rt.clock; rt.hitAt = rt.clock; sfx(rt, 'skill');
+  collectDead(rt);
+  return true;
+}
+
 // ---------- 직업(무기) 교체 ----------
 // 스탯/스킬에 투자한 골드 합계 (교체 시 일부 환급 대상)
 function investedGold(s) {
@@ -612,7 +630,7 @@ function collectDead(rt) {
     rt.kills++;
     if (rt.endless) { sfx(rt, 'kill'); continue; } // 무한 모드: 골드/경험치/드롭 없음
     const bm = burnMul(s), rb = (k) => (s.buff && s.buff[k] && s.buff[k].sec > 0 ? s.buff[k].mul : 1);
-    const g = Math.floor(e.gold * (1 + CFG.goldUp.per * s.up.gold) * permMul(s, 'gold') * bm * rb('gold'));
+    const g = niceNum(e.gold * (1 + CFG.goldUp.per * s.up.gold) * permMul(s, 'gold') * bm * rb('gold'));   // 100, 150, 200, 300 처럼 딱 떨어지는 값
     s.gold += g; s.kills = (s.kills || 0) + 1;
     fx(rt, e.x, '+' + fmt(g) + 'G', '#ffd35a');
     sfx(rt, 'kill');
@@ -889,13 +907,10 @@ function step(rt, dt) {
   rt.atkT += dt;
   const interval = 1 / d.spd;
   if (target) {
-    const auto = !(boss && s.bossManual);
     let used = false;
-    if (auto) {
-      const list = skillList(s);
-      for (let i = 0; i < list.length; i++) {
-        if (rt.cd[i] <= 0 && castSkill(rt, i)) { used = true; break; }
-      }
+    const list = skillList(s);
+    for (let i = 0; i < list.length; i++) {
+      if (rt.cd[i] <= 0 && castSkill(rt, i)) { used = true; break; }
     }
     if (!used && rt.atkT >= interval) {
       rt.atkT = 0; rt.hitAt = rt.clock;

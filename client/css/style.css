@@ -335,3 +335,24 @@ html.wide #tabBody { padding: 0; overflow: hidden; }
 .bchip.exp .bbar b { background: #7ab8ff; } .bchip.drop .bbar b { background: #c47bff; }
 body.mode-mini #hudProg .pip { width: 7px; height: 5px; } body.mode-mini #hudProg .killbar { width: 74px; }
 body.mode-mini .bchip { font-size: 10px; }
+
+/* ===== 룰렛 슬롯 릴 / 라운드 고정 버튼 / 보스 스킬 버튼 / 광고 링크 ===== */
+#rlWheel .reelwin { position: relative; height: 174px; width: 240px; margin: 10px auto; overflow: hidden; border-radius: 14px; background: linear-gradient(#20263a, #2c3550 50%, #20263a); box-shadow: inset 0 0 0 3px #ffd35a, 0 4px 14px rgba(0,0,0,.35); }
+#rlWheel .reel { will-change: transform; }
+#rlWheel .ritem { height: 58px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-size: 17px; }
+#rlWheel .ritem small { opacity: .7; font-size: 12px; }
+#rlWheel .ritem.win { color: #ffe066; text-shadow: 0 0 10px rgba(255,224,102,.9); }
+#rlWheel .reelwin::before, #rlWheel .reelwin::after { content: ''; position: absolute; left: 0; right: 0; height: 58px; z-index: 2; pointer-events: none; }
+#rlWheel .reelwin::before { top: 0; background: linear-gradient(rgba(15,18,30,.85), rgba(15,18,30,0)); }
+#rlWheel .reelwin::after { bottom: 0; background: linear-gradient(rgba(15,18,30,0), rgba(15,18,30,.85)); }
+#rlWheel .reelmark { position: absolute; left: 6px; right: 6px; top: 58px; height: 58px; border-top: 2px solid rgba(255,211,90,.9); border-bottom: 2px solid rgba(255,211,90,.9); border-radius: 6px; z-index: 3; pointer-events: none; }
+.linkbtn { background: none; border: none; color: #8a93a6; font-size: 11px; text-decoration: underline; cursor: pointer; padding: 2px; }
+#hudLock { position: absolute; right: 8px; bottom: 24px; display: flex; align-items: center; gap: 4px; padding: 3px 9px 3px 7px; border-radius: 14px; border: none; cursor: pointer; background: rgba(0,0,0,.5); color: #d6dbe6; box-shadow: 0 0 0 1px rgba(255,255,255,.2); font-size: 11px; font-weight: 700; }
+#hudLock.on { background: #ffb02e; color: #4a2c00; box-shadow: 0 0 0 1px #ffd98a, 0 0 10px rgba(255,176,46,.7); }
+body.mode-mini #hudLock { bottom: 20px; padding: 2px 6px; }
+.chip.bossbtn { background: linear-gradient(#ff7a5a, #d63a3a); color: #fff; font-weight: 800; border: none; box-shadow: 0 0 0 1px #ffb0a0; }
+.chip.bossbtn:disabled { filter: grayscale(.8); opacity: .6; box-shadow: none; }
+.chip.bossbtn.glow { animation: bossGlow .6s ease-in-out infinite alternate; }
+@keyframes bossGlow { from { box-shadow: 0 0 0 1px #ffb0a0; } to { box-shadow: 0 0 14px 3px #ffe066; } }
+#rlWheel { display: block; margin: 4px 0; }
+#rlWheel .mi { width: 22px; height: 22px; }
