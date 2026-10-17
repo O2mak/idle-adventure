@@ -312,3 +312,26 @@ html.wide #tabBody { padding: 0; overflow: hidden; }
 /* 일일 임무 */
 .bar { height: 6px; background: #12151c; border-radius: 4px; overflow: hidden; margin-top: 6px; }
 .bar i { display: block; height: 100%; background: var(--accent); }
+
+/* ===== 상단 HUD: 스테이지 진행 칸 + 처치 막대, 버프 칩 ===== */
+#hudTL { flex-direction: column; align-items: flex-start; gap: 3px; }
+#hudProg { display: flex; flex-direction: column; gap: 3px; }
+#hudProg .pips { display: flex; gap: 2px; }
+#hudProg .pip { width: 9px; height: 6px; border-radius: 2px; background: rgba(255,255,255,.25); box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+#hudProg .pip.done { background: #7ddc6a; }
+#hudProg .pip.cur { background: #ffe066; animation: pipPulse 1s ease-in-out infinite; }
+#hudProg .pip.boss { width: 12px; background: rgba(255,90,90,.45); }
+#hudProg .pip.boss.cur { background: #ff5a5a; }
+#hudProg .killbar { width: 98px; height: 5px; border-radius: 3px; background: rgba(0,0,0,.45); overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.2); }
+#hudProg .killbar b { display: block; height: 100%; background: linear-gradient(90deg, #5ac8ff, #8fe3ff); transition: width .2s; }
+#hudProg .killbar.boss b { background: linear-gradient(90deg, #ff6a6a, #ff9a6a); }
+@keyframes pipPulse { 50% { opacity: .55; } }
+#hudBurn { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; white-space: normal; max-width: 52%; }
+.bchip { display: flex; align-items: center; gap: 4px; padding: 1px 6px 1px 4px; border-radius: 10px; background: rgba(0,0,0,.5); box-shadow: 0 0 0 1px rgba(255,255,255,.18); font-size: 11px; color: #fff; }
+.bchip .bi { display: inline-flex; width: 14px; justify-content: center; }
+.bchip .bbar { width: 38px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); overflow: hidden; }
+.bchip .bbar b { display: block; height: 100%; background: #ffd35a; }
+.bchip.burn { color: #ffb066; } .bchip.burn .bbar b { background: linear-gradient(90deg, #ff6a2a, #ffb04a); }
+.bchip.exp .bbar b { background: #7ab8ff; } .bchip.drop .bbar b { background: #c47bff; }
+body.mode-mini #hudProg .pip { width: 7px; height: 5px; } body.mode-mini #hudProg .killbar { width: 74px; }
+body.mode-mini .bchip { font-size: 10px; }

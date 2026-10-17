@@ -93,6 +93,7 @@ function mergeSave(raw) {
   if (needLockFix) { out.lock = false; out.lockFix = 1; }   // 예전 버전이 쓰러질 때 자동으로 켠 '라운드 고정'을 한 번 풀어 줌
   for (const k of ['stats', 'up', 'equip', 'best', 'perm', 'endless', 'buff', 'ads']) out[k] = Object.assign(base[k], raw[k] || {});
   if (!Array.isArray(out.titles)) out.titles = [];
+  if (!(out.invCap >= CFG.inv.start)) out.invCap = CFG.inv.start;   // 기본 보관함이 늘어난 경우 옛 저장도 맞춰 줌
   if (!raw.lvUnit) {   // 성장 레벨을 묶음 단위로 바꾸기 전 저장 데이터: 레벨을 묶음으로 줄이고, 남는 레벨의 비용은 골드로 돌려줌
     const U = CFG.lvUnit, L = CFG.legacyCost;
     const conv = (v, t) => { const n = Math.floor(v / U); for (let lv = n * U; lv < v; lv++) out.gold += costOf(t, lv); return n; };
@@ -576,10 +577,12 @@ function goldCeiling(s) {
 function swapPreview(s, cls) {
   if (!CFG.enabledClasses.includes(cls) || cls === s.weaponType) return { ok: false, reason: '이미 이 직업이에요.' };
   const mismatched = CFG.slots.filter((sl) => s.equip[sl] && s.equip[sl].cls !== cls).length;
-  const invested = investedGold(s);
+  // 직업 변경 비용: 초보(캐릭터 Lv.freeUntil 미만)는 무료, 그 뒤로는 도달한 지역에 비례한 골드를 내야 함
+  const fee = s.level < CFG.swap.freeUntil ? 0 : niceNum(monStats(Math.max(1, s.best.region), 5).gold * CFG.swap.feeMul);
   const space = s.invCap - s.inv.length;
-  if (mismatched > space) return { ok: false, reason: `보관함이 부족해요. ${mismatched - space}칸을 비워 주세요.`, mismatched, invested };
-  return { ok: true, refund: Math.floor(invested * CFG.swap.refund), invested, mismatched };
+  if (mismatched > space) return { ok: false, reason: `보관함이 부족해요. ${mismatched - space}칸을 비워 주세요.`, mismatched, fee };
+  if (s.gold < fee) return { ok: false, reason: `직업을 바꾸려면 ${fmt(fee)}G가 필요해요.`, mismatched, fee };
+  return { ok: true, fee, mismatched };
 }
 
 function switchClass(rt, cls) {
@@ -587,10 +590,8 @@ function switchClass(rt, cls) {
   if (!pv.ok) return pv;
   // 1) 현재 직업 장비를 보관함으로
   for (const sl of CFG.slots) { const it = s.equip[sl]; if (it && it.cls !== cls) { s.inv.push(it); s.equip[sl] = null; } }
-  // 2) 투자 초기화 + 일부 환급 (골드 획득량/드롭률/보관함/장비 강화는 유지)
-  s.gold += pv.refund;
-  s.stats = { hp: 0, atk: 0, mag: 0, def: 0, spd: 0 };
-  s.skillLv = [0, 0, 0, 0];
+  // 2) 변경 비용 지불 (골드 획득량/드롭률/보관함은 유지, 직업 장비의 강화는 그 직업 장비에 남음)
+  s.gold -= pv.fee;
   s.weaponType = cls;
   // 3) 새 직업 장비 중 좋은 것 장착, 무기가 없으면 기본 무기 지급
   equipBest(rt);
@@ -598,8 +599,8 @@ function switchClass(rt, cls) {
   rt.cd = [0, 0, 0, 0]; rt.enemies = []; rt.spawned = 0; rt.kills = 0;
   refresh(rt);
   rt.hp = rt.d.hp;
-  msg(rt, `${CFG.classInfo[cls].title}(으)로 바꿨어요!`, 'ok');
-  return { ok: true, refund: pv.refund };
+  msg(rt, `${CFG.classInfo[cls].title}(으)로 바꿨어요!${pv.fee ? ` (${fmt(pv.fee)}G 사용)` : ''}`, 'ok');
+  return { ok: true, fee: pv.fee };
 }
 
 function collectDead(rt) {

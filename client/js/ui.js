@@ -225,6 +225,7 @@ function uiAct(act) {
       const pv = swapPreview(s, b), ci = CFG.classInfo[b];
       if (!pv.ok) { alert(pv.reason); break; }
       const text = `${ci.title}(${ci.weapon})(으)로 바꿀까요?\n\n` +
+        (pv.fee ? `• 변경 비용 ${fmt(pv.fee)}G가 들어요. (캐릭터 Lv.${CFG.swap.freeUntil} 미만은 무료)\n` : '• 지금은 무료로 바꿀 수 있어요. (초보 보호)\n') +
         `• 지금 끼고 있는 장비 ${pv.mismatched}개는 보관함으로 이동해요. (직업이 달라서 착용할 수 없어요)\n` +
         `• 레벨(Lv.${s.level}), 골드 획득량/드롭률, 장비 강화는 그대로예요.\n` +
         `• ${ci.title}의 스킬은 레벨에 맞춰 다시 해금돼요.`;
@@ -692,12 +693,21 @@ function uiUpdate() {
     $('seasonInfo').textContent = left > 0 ? `${UI.season.name} · ${d > 0 ? d + '일 ' : ''}${h}시간 남음` : UI.season.name;
   } else $('seasonInfo').textContent = '';
   $('stageLabel').textContent = (rt.endless ? `무한 ${rt.endless.floor}층 · ${rg.name}` : `${s.region}-${s.round} ${rg.name}`) + (boss ? ` · ${bossName}` : '');
-  $('killLabel').textContent = boss ? '보스' : `${rt.kills}/${needKillsRt(rt)}`;
+  // 스테이지 진행: 라운드 칸(마지막은 보스) + 이번 라운드 처치 막대
+  const need = needKillsRt(rt), killPct = boss ? 100 : Math.min(100, rt.kills / need * 100);
+  const pips = rt.endless ? '' : Array.from({ length: CFG.roundsPerRegion }, (_, i) => `<i class="pip${i + 1 === CFG.roundsPerRegion ? ' boss' : ''}${i + 1 < s.round ? ' done' : i + 1 === s.round ? ' cur' : ''}"></i>`).join('');
+  const prog = `<div class="pips">${pips}</div><div class="killbar${boss ? ' boss' : ''}"><b style="width:${killPct.toFixed(0)}%"></b></div>`;
+  if (prog !== UI.lastProg) { UI.lastProg = prog; $('hudProg').innerHTML = prog; }
   $('goldLabel').textContent = rt.endless ? `최고 ${s.endless.best}층` : fmt(s.gold) + ' G';
   $('hudTime').textContent = `오늘 ${fmtTime(s.today ? s.today.sec : 0)} · 접속 ${fmtTime(rt.clock)}`;
   const bl = burnLeft(s);
   $('stage').classList.toggle('burning', bl > 0);
-  $('hudBurn').textContent = [bl > 0 ? `버닝 ×${CFG.burn.mul} · ${Math.floor(bl / 3600)}:${String(Math.floor(bl % 3600 / 60)).padStart(2, '0')}:${String(Math.floor(bl % 60)).padStart(2, '0')} 남음` : '', ...buffs].filter(Boolean).join('\n');
+  // 버닝/룰렛·광고 버프: 아이콘 + 배율 + 남은 시간 막대 (자세한 시간은 마우스를 올리면 표시)
+  const bchip = (cls, icon, label, left, total) => `<div class="bchip ${cls}" title="${label} · 남은 시간 ${fmtTime(left)}"><span class="bi">${icon}</span><span class="bl">${label}</span><span class="bbar"><b style="width:${Math.min(100, Math.max(0, left / total * 100)).toFixed(0)}%"></b></span></div>`;
+  const BI = { exp: mi('star'), gold: mi('coin'), drop: mi('gift') };
+  const hudB = (bl > 0 ? bchip('burn', '🔥', `버닝 ×${CFG.burn.mul}`, bl, CFG.burn.sec) : '') +
+    ['exp', 'gold', 'drop'].filter((k) => s.buff[k].sec > 0).map((k) => bchip(k, BI[k], `${CFG.roulette.kinds[k]} ×${s.buff[k].mul}`, s.buff[k].sec, 1800)).join('');
+  if (hudB !== UI.lastBurn) { UI.lastBurn = hudB; $('hudBurn').innerHTML = hudB; }
   const maxLv = s.level >= CFG.level.cap;
   $('hudLv').textContent = `Lv.${s.level}${maxLv ? ' (최대)' : ''}`;
   $('hudExpFill').style.width = (maxLv ? 100 : Math.min(100, s.exp / expNeed(s.level) * 100)) + '%';

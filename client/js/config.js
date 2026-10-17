@@ -186,7 +186,7 @@ const CFG = {
     mage: { title: '마법사', weapon: '스태프', range: 120, hp: 0.7, plain: 0.6, skill: 1.2, stat: 'mag', recommend: false,
       desc: '스킬이 아주 강하지만 평타는 약해요. 초반에는 조금 어려워요. (마력을 올려요)' },
   },
-  swap: { refund: 0.5 },                // 직업(무기) 교체 시 스탯/스킬 투자 골드의 환급 비율
+  swap: { freeUntil: 10, feeMul: 300 }, // 직업(무기) 교체: 캐릭터 Lv.10 미만은 무료, 이후 비용 = 최고 도달 지역 몬스터 골드 x feeMul. 직업이 다른 장비는 보관함으로 가서 새 직업 장비를 다시 맞춰야 함
   itemNouns: {
     melee: { weapon: '검', hat: '방울 비니', armor: '망토 조끼', ring: '방울 목걸이' },
     ranged: { weapon: '활', hat: '깃털 베레모', armor: '스카프 조끼', ring: '방울 목걸이' },
@@ -194,7 +194,7 @@ const CFG = {
   },
 
   // 보관함 / 합성 / 분해
-  inv: { start: 30, step: 5, max: 100, cost: [300, 1.35] },
+  inv: { start: 50, step: 5, max: 150, cost: [300, 1.35] },
   merge: { need: 10, maxResultGrade: 3, resultSlots: ['hat', 'armor', 'ring'] }, // 전설은 합성 불가, 결과 부위는 무기 제외
   salvageMul: [1, 3, 8, 20, 50],        // 분해 보상 = 해당 지역 몬스터 골드 x 이 값 (적게)
 
