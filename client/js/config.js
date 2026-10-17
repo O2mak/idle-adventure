@@ -1,5 +1,9 @@
 ﻿// 밸런스/설정 값 모음. 수치 조정은 이 파일만 고치면 됩니다.
+// 성장 레벨 1칸 = 옛 레벨 LV_UNIT칸 묶음 (클릭 수를 줄이려고 가격과 효과를 함께 키움. 전체 속도는 그대로)
+const LV_UNIT = 10;
+function bundleCost(t) { const r = Math.pow(t[1], LV_UNIT); return [t[0] * (r - 1) / (t[1] - 1), r]; }
 const CFG = {
+  lvUnit: LV_UNIT,
   tickDt: 0.05,          // 로직 1틱 = 0.05초
   catchUpMax: 120,       // 탭이 느려졌을 때 한 번에 따라잡는 최대 시간(초)
   saveKey: 'idlegame_save_v2',
@@ -43,12 +47,17 @@ const CFG = {
   statPer: { hp: 20, atk: 2, mag: 2, def: 1, spd: 0.03 },
   statGrowth: 1.07,      // 체력/공격력/마력/방어력: 투자 레벨마다 효과가 이 비율로 복리 증가 (필요 골드 증가율보다 약간 낮게)
   statCurve: 50,         // 신속: 레벨이 높을수록 효율이 조금씩 올라가는 정도(선형)
-  statCost: {            // [기본 비용, 레벨당 증가 배율]
+  // 옛 1칸 기준 가격표(마이그레이션·각성 비용 기준용). 실제 가격표는 아래에서 묶음으로 계산
+  legacyCost: {
     hp: [10, 1.08], atk: [10, 1.08], mag: [10, 1.08], def: [15, 1.09], spd: [40, 1.12],
+    gold: [60, 1.25], drop: [80, 1.28], skill: [100, 1.35],
   },
-  goldUp: { per: 0.04, cost: [60, 1.25] },   // 골드 획득량
-  dropUp: { per: 0.03, cost: [80, 1.28] },   // 드롭률
-  skillUp: { per: 0.15, cost: [100, 1.35] },
+  statCost: {            // [기본 비용, 레벨당 증가 배율] (묶음 단위)
+    hp: bundleCost([10, 1.08]), atk: bundleCost([10, 1.08]), mag: bundleCost([10, 1.08]), def: bundleCost([15, 1.09]), spd: bundleCost([40, 1.12]),
+  },
+  goldUp: { per: 0.04 * LV_UNIT, cost: bundleCost([60, 1.25]) },   // 골드 획득량
+  dropUp: { per: 0.03 * LV_UNIT, cost: bundleCost([80, 1.28]) },   // 드롭률
+  skillUp: { per: 0.15 * LV_UNIT, cost: bundleCost([100, 1.35]) },
 
   // 장비 강화: 장비 하나하나에 붙는 +0 ~ +10 (등급과는 별개)
   enh: {

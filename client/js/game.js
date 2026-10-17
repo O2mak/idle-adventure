@@ -65,7 +65,7 @@ function newSave(animal, name, cls) {
   const sv = {
     v: 2, animal: animal || 'dog', name: name || '모험가',
     gold: 0, level: 1, exp: 0, kills: 0, playTime: 0, today: { date: dayKey(), sec: 0 },
-    region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
+    lvUnit: CFG.lvUnit, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
     best: { region: 1, round: 1 },
     clearedRegions: [], permPoints: 0, pendingPoints: 0,   // permPoints=지금 쓸 수 있는 포인트, pendingPoints=이번 시즌에 모은 포인트(다음 시즌에 사용 가능)
     perm: { atk: 0, hp: 0, mag: 0, gold: 0, drop: 0, exp: 0 }, titles: [],
@@ -93,6 +93,14 @@ function mergeSave(raw) {
   if (needLockFix) { out.lock = false; out.lockFix = 1; }   // 예전 버전이 쓰러질 때 자동으로 켠 '라운드 고정'을 한 번 풀어 줌
   for (const k of ['stats', 'up', 'equip', 'best', 'perm', 'endless', 'buff', 'ads']) out[k] = Object.assign(base[k], raw[k] || {});
   if (!Array.isArray(out.titles)) out.titles = [];
+  if (!raw.lvUnit) {   // 성장 레벨을 묶음 단위로 바꾸기 전 저장 데이터: 레벨을 묶음으로 줄이고, 남는 레벨의 비용은 골드로 돌려줌
+    const U = CFG.lvUnit, L = CFG.legacyCost;
+    const conv = (v, t) => { const n = Math.floor(v / U); for (let lv = n * U; lv < v; lv++) out.gold += costOf(t, lv); return n; };
+    for (const k of Object.keys(out.stats)) out.stats[k] = conv(out.stats[k], L[k]);
+    out.up.gold = conv(out.up.gold, L.gold); out.up.drop = conv(out.up.drop, L.drop);
+    out.skillLv = out.skillLv.map((v) => conv(v, L.skill));
+    out.lvUnit = U;
+  }
   // v1 저장 데이터 이전: 장비에 직업/강화/고유번호 부여
   if ((raw.v || 1) < 2) {
     for (const slot of CFG.slots) {
@@ -115,11 +123,12 @@ function isBoss(round) { return round === CFG.roundsPerRegion; }
 
 function calcStats(s) {
   const P = CFG.player, per = CFG.statPer, st = s.stats;
-  let hp = P.hp + lvVal(st.hp) * per.hp;
-  let atk = P.atk + lvVal(st.atk) * per.atk;
-  let mag = P.mag + lvVal(st.mag) * per.mag;
-  let def = P.def + lvVal(st.def) * per.def;
-  let spdB = lvLin(st.spd) * per.spd;
+  const U = CFG.lvUnit;   // 성장 1레벨 = 옛 U레벨 효과
+  let hp = P.hp + lvVal(st.hp * U) * per.hp;
+  let atk = P.atk + lvVal(st.atk * U) * per.atk;
+  let mag = P.mag + lvVal(st.mag * U) * per.mag;
+  let def = P.def + lvVal(st.def * U) * per.def;
+  let spdB = lvLin(st.spd * U) * per.spd;
   const lv = (s.level || 1) - 1; // 캐릭터 레벨 보너스 (고정 수치)
   hp += lv * CFG.level.hp; atk += lv * CFG.level.atk; mag += lv * CFG.level.mag;
   const pm = s.perm || {}, PI = CFG.perm.items; // 영구 포인트 투자 (고정 수치)
@@ -373,7 +382,7 @@ function enhMul(it) { return 1 + Math.min(it.enh, CFG.enh.max) * CFG.enh.per; }
 function enhMax(it) { return it.slot === 'weapon' ? CFG.enh.awaken.max : CFG.enh.max; }
 function awakenBonus(it) { return it && it.slot === 'weapon' && it.enh > CFG.enh.max ? CFG.enh.awaken.bonus[it.enh - CFG.enh.max - 1] : 0; }
 // +10 -> +11 처럼 n(11~15)강으로 올리는 도전 1회 비용: 공격력 스탯 refLevel레벨 가격의 일정 배수
-function awakenCost(n) { const A = CFG.enh.awaken; return Math.floor(costOf(CFG.statCost.atk, A.refLevel) * A.costMul[n - CFG.enh.max - 1]); }
+function awakenCost(n) { const A = CFG.enh.awaken; return Math.floor(costOf(CFG.legacyCost.atk, A.refLevel) * A.costMul[n - CFG.enh.max - 1]); }
 // 지금 도전의 성공 확률 (기본 확률 + 연속 실패 보너스)
 function awakenChance(w) { const A = CFG.enh.awaken; return Math.min(1, A.chance[w.enh + 1 - CFG.enh.max - 1] + Math.min(A.pityMax, (w.pity || 0) * A.pityStep)); }
 // 무기 각성 도전. 결과: { ok:false, reason } 또는 { ok:true, success, from, to, cost }
