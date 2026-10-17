@@ -24,6 +24,7 @@ export function rewardFor(rank, total) {
 export function rollSave(old, seasonIndex, rank) {
   const fresh = newSave(old.animal, old.name, old.weaponType);
   fresh.season = seasonIndex;
+  fresh.animalLocked = false;   // 새 시즌 시작: 동물을 다시 고를 수 있음
   fresh.permPoints = (old.permPoints || 0) + (old.pendingPoints || 0);
   fresh.pendingPoints = 0;
   fresh.perm = Object.assign(fresh.perm, old.perm || {});
@@ -86,6 +87,8 @@ export function validateSave(old, s, elapsedSec, now = Date.now()) {
   if (s.v !== 2) fatal.push('저장 버전이 달라요');
   if (!['dog', 'cat'].includes(s.animal)) fatal.push('캐릭터 정보가 올바르지 않아요');
   if (!CFG.enabledClasses.includes(s.weaponType)) fatal.push('직업 정보가 올바르지 않아요');
+  if (old && old.animalLocked !== false && old.animal && s.animal !== old.animal) fatal.push('동물은 시즌이 시작될 때만 바꿀 수 있어요');
+  if (old && old.animalLocked !== false && s.animalLocked === false) fatal.push('동물 선택 상태가 올바르지 않아요');
   for (const k of ['gold', 'playTime', 'region', 'round', 'level', 'exp']) if (!isNum(s[k]) || s[k] < 0) fatal.push(`${k} 값이 올바르지 않아요`);
   if (isNum(s.level) && (!Number.isInteger(s.level) || s.level < 1 || s.level > CFG.level.cap)) fatal.push('레벨 값이 올바르지 않아요');
   if (fatal.length) return { fatal, flags };

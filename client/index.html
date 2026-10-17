@@ -17,6 +17,7 @@
         <button class="animal sel" data-animal="dog"><canvas width="96" height="96" data-sprite="dog"></canvas><span>강아지</span></button>
         <button class="animal" data-animal="cat"><canvas width="96" height="96" data-sprite="cat"></canvas><span>고양이</span></button>
       </div>
+      <p class="tiny" id="startAnimalInfo"></p>
       <p class="sub">직업을 골라주세요</p>
       <div id="clsPickStart" class="clsrow"></div>
       <label class="nick">닉네임 <input id="startName" maxlength="12" value="모험가"></label>
@@ -42,7 +43,8 @@
           <button class="animal sel" data-reg-animal="dog"><canvas width="96" height="96" data-sprite="dog"></canvas><span>강아지</span></button>
           <button class="animal" data-reg-animal="cat"><canvas width="96" height="96" data-sprite="cat"></canvas><span>고양이</span></button>
         </div>
-        <p class="sub">직업을 골라주세요 <span class="tiny">(나중에 바꿀 수 있지만, 투자한 골드는 절반만 돌려받아요)</span></p>
+        <p class="tiny" id="regAnimalInfo"></p>
+        <p class="sub">직업을 골라주세요 <span class="tiny">(나중에 바꿀 수 있어요. 직업이 다른 장비는 보관함으로 가요)</span></p>
         <div id="clsPickReg" class="clsrow"></div>
       </div>
       <p id="liMsg" class="msg"></p>
@@ -80,6 +82,18 @@
   </div>
 
   <!-- 룰렛 -->
+  <div id="animalOverlay" class="overlay hidden">
+    <div class="card">
+      <h2>이번 시즌의 친구를 골라요</h2>
+      <p class="sub">고르면 이번 시즌 동안은 바꿀 수 없어요. 다음 시즌이 시작되면 다시 고를 수 있어요.</p>
+      <div class="animals">
+        <button class="animal" data-act="animalpick:dog"><canvas width="96" height="96" data-sprite="dog"></canvas><span>강아지</span></button>
+        <button class="animal" data-act="animalpick:cat"><canvas width="96" height="96" data-sprite="cat"></canvas><span>고양이</span></button>
+      </div>
+      <div id="apInfo"></div>
+      <div class="toolbar center"><button class="primary" data-act="animalpick:ok">이 친구로 시작</button></div>
+    </div>
+  </div>
   <div id="rouletteOverlay" class="overlay hidden">
     <div class="card">
       <h2>행운 룰렛</h2>

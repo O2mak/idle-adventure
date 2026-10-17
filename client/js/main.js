@@ -74,6 +74,9 @@
     $('blocker').classList.remove('hidden');
   }
 
+  // 동물 고유 능력 설명 (시작/가입 화면에서 미리 보여 줌)
+  function animalNote(el, a) { const k = CFG.animalSkills[a]; if (el) el.textContent = `${a === 'dog' ? '강아지' : '고양이'} · ${k.name}: ${k.desc} (Lv.${k.unlock}부터) — 동물은 시즌이 시작될 때만 고를 수 있어요.`; }
+
   // ----- 화면 미리보기 -----
   function drawPreviews() {
     document.querySelectorAll('canvas[data-sprite]').forEach((c) => {
@@ -89,9 +92,10 @@
     let animal = 'dog', cls = 'melee';
     buildClassPicker($('clsPickStart'), (c) => { cls = c; });
     document.querySelectorAll('#startOverlay .animal').forEach((b) => b.addEventListener('click', () => {
-      animal = b.dataset.animal;
+      animal = b.dataset.animal; animalNote($('startAnimalInfo'), animal);
       document.querySelectorAll('#startOverlay .animal').forEach((x) => x.classList.toggle('sel', x === b));
     }));
+    animalNote($('startAnimalInfo'), animal);
     $('startBtn').addEventListener('click', () => {
       const name = $('startName').value.trim().slice(0, 12) || '모험가';
       $('startOverlay').classList.add('hidden');
@@ -117,9 +121,10 @@
     };
     document.querySelectorAll('[data-login-tab]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.loginTab)));
     document.querySelectorAll('[data-reg-animal]').forEach((b) => b.addEventListener('click', () => {
-      animal = b.dataset.regAnimal;
+      animal = b.dataset.regAnimal; animalNote($('regAnimalInfo'), animal);
       document.querySelectorAll('[data-reg-animal]').forEach((x) => x.classList.toggle('sel', x === b));
     }));
+    animalNote($('regAnimalInfo'), animal);
     const submit = async () => {
       const id = $('liId').value.trim(), pw = $('liPw').value;
       if (!id || !pw) { msgEl.textContent = '아이디와 비밀번호를 입력해 주세요.'; return; }
@@ -144,6 +149,7 @@
     begin(mergeSave(d.save));
     if (d.rolled) msg(rt, `새 시즌이 시작되었어요! (${d.season.name}) 영구 포인트와 닉네임은 이어집니다.`, 'ok');
     showReward();
+    if (!rt.save.animalLocked) openAnimalPick();   // 새 시즌: 동물을 다시 고름
   }
 
   // 지난 시즌 무한 모드 순위 보상 알림 (한 번 보여준 뒤 지움)

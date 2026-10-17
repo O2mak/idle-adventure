@@ -193,6 +193,10 @@ function uiAct(act) {
       break;
     }
     case 'roulette': rouletteAct(b); return;
+    case 'animalpick':
+      if (b === 'ok') { s.animalLocked = true; $('animalOverlay').classList.add('hidden'); buildSkillbar(); refresh(rt); }
+      else { s.animal = b; renderAnimalPick(); }
+      return;
     case 'fbcat': UI.fbCat = b; break;
     case 'fb': sendFeedbackUi(); return;
     case 'ad': adAct(b, c); return;
@@ -557,7 +561,7 @@ function colsHtml() {
 function panelSettings() {
   const s = UI.rt.save;
   return `<h3>닉네임</h3><div class="row"><input id="nickInput" maxlength="12" value="${esc(s.name)}"><span class="note">입력 후 엔터</span></div>` +
-    `<h3>캐릭터</h3><div class="row"><button class="chip ${s.animal === 'dog' ? 'on' : ''}" data-act="animal:dog">강아지</button><button class="chip ${s.animal === 'cat' ? 'on' : ''}" data-act="animal:cat">고양이</button></div>` +
+    `<h3>캐릭터</h3><div class="row"><span class="rn">${s.animal === 'dog' ? '강아지' : '고양이'}<small>${esc(CFG.animalSkills[s.animal].name)}: ${esc(CFG.animalSkills[s.animal].desc)}<br>동물은 시즌이 시작될 때만 고를 수 있어요. 다음 시즌에 다시 고를 수 있습니다.</small></span></div>` +
     `<h3>화면 배치</h3><div class="row"><span class="rn">성장·장비·스킬 보기<small>큰 화면에서는 세 가지를 한 번에 보여 줄 수 있어요. (작은 화면에서는 탭으로 하나씩 보여요)</small></span>${[['auto', '자동'], ['tabs', '항상 탭'], ['cols', '한 번에']].map(([k, n]) => `<button class="chip ${UI.layout === k ? 'on' : ''}" data-act="layout:${k}">${n}</button>`).join('')}</div>` +
     `<h3>작은 화면</h3>` +
     `<div class="row"><span class="rn">미니 화면에서 캐릭터를 누르면 전체 화면 열기<small>끄면 눌러도 아무 일도 일어나지 않아요 (위의 '전체' 버튼으로 이동)</small></span><button class="chip ${s.miniClick ? 'on' : ''}" data-act="miniclick">${s.miniClick ? '켜짐' : '꺼짐'}</button></div>` +
@@ -583,6 +587,20 @@ function renderRoulette(winIdx, onIdx) {
   $('rlWheel').innerHTML = R.segments.map((g, i) =>
     `<div class="seg ${i === onIdx ? 'on' : ''} ${i === winIdx ? 'win' : ''}">${mi(RL_ICON[g.kind])}<b>${R.kinds[g.kind]} ×${g.mul}</b>${Math.round(g.sec / 60)}분</div>`).join('');
   $('rlSpin').disabled = UI.spinning || s.tickets < 1;
+}
+// 시즌 시작 때 동물 고르기 (고르면 그 시즌 동안 바꿀 수 없음)
+function renderAnimalPick() {
+  const s = UI.rt.save;
+  document.querySelectorAll('#animalOverlay [data-act^="animalpick:"]').forEach((b) => { const a = b.dataset.act.split(':')[1]; if (a !== 'ok') b.classList.toggle('sel', a === s.animal); });
+  $('apInfo').innerHTML = ['dog', 'cat'].map((a) => { const k = CFG.animalSkills[a]; return `<div class="row ${a === s.animal ? 'on' : ''}"><div class="rn"><b>${a === 'dog' ? '강아지' : '고양이'} · ${esc(k.name)}</b><small>${esc(k.desc)} (캐릭터 Lv.${k.unlock}부터)</small></div></div>`; }).join('');
+}
+function openAnimalPick() {
+  document.querySelectorAll('#animalOverlay canvas[data-sprite]').forEach((c) => {
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.clearRect(0, 0, 96, 96);
+    g.drawImage(animalSprite(c.dataset.sprite, { eyes: 'open', mouth: false, tail: 0 }), 0, 0, 96, 96);
+  });
+  renderAnimalPick();
+  $('animalOverlay').classList.remove('hidden');
 }
 function rouletteAct(what) {
   if (!what) { $('rlResult').textContent = ''; renderRoulette(); $('rouletteOverlay').classList.remove('hidden'); return; }
