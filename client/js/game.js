@@ -56,7 +56,6 @@ function rollDay(s) {
   const k = dayKey();
   if (!s.today || s.today.date !== k) s.today = { date: k, sec: 0 };
   if (!s.ads || s.ads.date !== k) s.ads = { date: k, count: 0 };
-  if (!s.daily || s.daily.date !== k) s.daily = { date: k, kills: 0, boss: 0, merge: 0, claimed: [] };
   if (s.ticketDay !== k) { s.ticketDay = k; s.tickets = Math.min(CFG.roulette.cap, (s.tickets || 0) + 1); }   // 매일 첫 접속 룰렛 티켓
 }
 
@@ -72,7 +71,6 @@ function newSave(animal, name, cls) {
     perm: { atk: 0, hp: 0, mag: 0, gold: 0, drop: 0, exp: 0 }, titles: [],
     tickets: 1, ticketDay: dayKey(),   // 룰렛 티켓 (매일 첫 접속 +1)
     ads: { date: dayKey(), count: 0 }, // 오늘 본 보상형 광고 횟수
-    daily: { date: dayKey(), kills: 0, boss: 0, merge: 0, claimed: [] },   // 오늘의 임무 진행
     buff: { exp: { sec: 0, mul: 1 }, gold: { sec: 0, mul: 1 }, drop: { sec: 0, mul: 1 } },   // 룰렛 보너스 (남은 시간은 접속 중에만 줄어듦)
     endless: { best: 0, bestAt: 0 },   // 무한 모드 이번 시즌 최고 층과 도달 시각(ms)
     reward: null,                      // 지난 시즌 랭킹 보상 알림 (서버가 시즌 전환 때 넣고, 화면에서 보여준 뒤 지움)
@@ -93,7 +91,7 @@ function mergeSave(raw) {
   const needLockFix = !raw.lockFix;
   const out = Object.assign(base, raw);
   if (needLockFix) { out.lock = false; out.lockFix = 1; }   // 예전 버전이 쓰러질 때 자동으로 켠 '라운드 고정'을 한 번 풀어 줌
-  for (const k of ['stats', 'up', 'equip', 'best', 'perm', 'endless', 'buff', 'ads', 'daily']) out[k] = Object.assign(base[k], raw[k] || {});
+  for (const k of ['stats', 'up', 'equip', 'best', 'perm', 'endless', 'buff', 'ads']) out[k] = Object.assign(base[k], raw[k] || {});
   if (!Array.isArray(out.titles)) out.titles = [];
   // v1 저장 데이터 이전: 장비에 직업/강화/고유번호 부여
   if ((raw.v || 1) < 2) {
@@ -326,7 +324,6 @@ function mergeGroup(rt, slot, grade) {
   const item = makeItem(s, pickRandom(rt, CFG.merge.resultSlots), grade + 1, region, pickRandom(rt, CFG.enabledClasses));
   addItem(rt, item, true);
   msg(rt, `합성 성공! [${CFG.gradeNames[grade + 1]}] ${item.name}`, 'ok');
-  if (s.daily) s.daily.merge++;
   rt.happyAt = rt.clock;
   return true;
 }
@@ -582,8 +579,7 @@ function collectDead(rt) {
     rt.enemies.splice(rt.enemies.indexOf(e), 1);
     if (e.minion) { sfx(rt, 'kill'); continue; } // 보스가 부른 졸개: 보상도 처치 수도 없음
     rt.kills++;
-    if (rt.endless) { sfx(rt, 'kill'); continue; }
-    if (s.daily) { s.daily.kills++; if (e.boss) s.daily.boss++; } // 무한 모드: 골드/경험치/드롭 없음
+    if (rt.endless) { sfx(rt, 'kill'); continue; } // 무한 모드: 골드/경험치/드롭 없음
     const bm = burnMul(s), rb = (k) => (s.buff && s.buff[k] && s.buff[k].sec > 0 ? s.buff[k].mul : 1);
     const g = Math.floor(e.gold * (1 + CFG.goldUp.per * s.up.gold) * permMul(s, 'gold') * bm * rb('gold'));
     s.gold += g; s.kills = (s.kills || 0) + 1;
@@ -801,19 +797,6 @@ function autoInvest(rt) {
   return n;
 }
 
-// ---------- 일일 임무 ----------
-function dailyReward(s, m) { return Math.floor(monStats(Math.min(CFG.regions.length, Math.max(1, s.best.region)), CFG.roundsPerRegion).gold * m.gold); }
-function dailyDone(s, m) { return (s.daily[m.id] || 0) >= m.need; }
-function dailyClaimable(s) { return CFG.daily.some((m) => dailyDone(s, m) && !s.daily.claimed.includes(m.id)); }
-function claimDaily(rt, id) {
-  const s = rt.save, m = CFG.daily.find((x) => x.id === id);
-  rollDay(s);
-  if (!m || !dailyDone(s, m) || s.daily.claimed.includes(id)) return 0;
-  const g = dailyReward(s, m); s.gold += g; s.daily.claimed.push(id);
-  msg(rt, `일일 임무 보상! +${fmt(g)}G (${m.label})`, 'ok'); sfx(rt, 'rare');
-  return g;
-}
-
 // ---------- 룰렛 ----------
 // 티켓 1개로 돌려서 보너스를 받음. 같은 종류 보너스가 이미 있으면 시간을 더하고 배율은 높은 쪽
 function spinRoulette(rt) {
@@ -911,6 +894,7 @@ function step(rt, dt) {
 }
 
 if (typeof module !== 'undefined') module.exports = { CFG };
+
 
 
 
