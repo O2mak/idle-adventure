@@ -1,4 +1,4 @@
-﻿// 게임 로직 (화면/DOM과 무관). 브라우저와 Node 테스트 양쪽에서 동작합니다.
+// 게임 로직 (화면/DOM과 무관). 브라우저와 Node 테스트 양쪽에서 동작합니다.
 // 랜덤은 모두 rt.rng(시드 기반)을 사용 → 나중에 서버에서 같은 결과를 다시 계산(랭킹 검증)할 수 있게 준비.
 
 // ---------- 유틸 ----------
@@ -345,7 +345,7 @@ function mergeCount(s, slot, grade) {
   for (const it of s.inv) if (it.slot === slot && it.grade === grade) n++;
   return n;
 }
-function canMergeGrade(grade, s) { return grade + 1 <= CFG.merge.maxResultGrade && (!s || s.best.region >= CFG.gradeUnlock[grade + 1]); }   // 합성 결과 등급이 해금된 뒤에만
+function canMergeGrade(grade) { return grade + 1 <= CFG.merge.maxResultGrade; }   // 합성은 등급 해금과 상관없이 가능(재료 10개가 워낙 많이 필요해서 자연히 늦어짐)
 
 // 같은 부위 + 같은 등급 N개 → 한 단계 위 등급 장비 1개 (부위/직업 랜덤, 무기 제외, 강화 소멸)
 function mergeGroup(rt, slot, grade) {
