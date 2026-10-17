@@ -407,7 +407,7 @@ function panelEquip() {
 
   // 합성
   let mergeRows = '';
-  for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g); g++) {
+  for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g, s); g++) {
     const n = mergeCount(s, slot, g);
     if (!n) continue;
     const rep = s.inv.find((x) => x.slot === slot && x.grade === g);
@@ -657,7 +657,7 @@ async function adAct(what, kind) {
 function tabBadge(s, key) {
   if (key === 'equip') {
     if (s.inv.some((it) => it.cls === s.weaponType && itemScore(it) > itemScore(s.equip[it.slot]))) return true;
-    for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g); g++) if (mergeCount(s, slot, g) >= CFG.merge.need) return true;
+    for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g, s); g++) if (mergeCount(s, slot, g) >= CFG.merge.need) return true;
     return false;
   }
   if (key === 'perm') return s.permPoints > 0 && Object.keys(CFG.perm.items).some((k) => { const c = permNextCost(s, k); return c !== null && s.permPoints >= c; });

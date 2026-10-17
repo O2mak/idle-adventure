@@ -159,21 +159,21 @@ const CFG = {
 
   // 드롭
   drop: { normal: 0.03, boss: 0.5 },
-  gradeWeights: [60, 28, 9, 2.5],       // 일반~영웅 (전설은 아래 legend로 별도)
-  legend: { region: 9, weight: 0.2 },   // 전설: 거의 최종 지역(9지역~)에서만, 아주아주 낮은 확률
-  gradeMul: [1, 1.6, 2.5, 4, 6.5],
+  // 장비 성능은 지역과 무관하고 등급으로만 정해짐 (능력치에 곱해지는 비율). 등급은 지역에 도달해야 드롭/합성됨
+  gradeWeights: [60, 28, 9, 2.5, 0.2],  // 일반~전설 드롭 비중 (보스는 높은 등급 쪽으로 치우침)
+  gradeUnlock: [1, 4, 7, 8, 9],         // 이 지역(최고 도달 지역)부터 해당 등급이 드롭되고 합성으로 만들 수 있음
+  gradeMul: [1, 1.8, 3.2, 6, 11],
   gradeNames: ['일반', '고급', '희귀', '영웅', '전설'],
   gradeColors: ['#b0b8c0', '#6fd16f', '#5aa8ff', '#c47bff', '#ffb53d'],
-  itemScale: 3.2,        // 지역이 오를 때마다 장비 성능 배율
+  itemScale: 3.2,        // 강화 비용 배율: 등급이 처음 나오는 지역마다 이 값씩 곱해짐 (장비 성능이 아니라 강화 가격 기준)
   slots: ['weapon', 'hat', 'armor', 'ring'],
   slotNames: { weapon: '무기', hat: '모자', armor: '옷', ring: '목걸이' },
-  slotBase: {
-    weapon: { atk: 6, mag: 6, spd: 0.02 },
-    hat: { hp: 30, def: 1 },
-    armor: { hp: 50, def: 2 },
-    ring: { atk: 3, mag: 3, hp: 15 },
+  slotBase: {            // 일반 등급 +0 기준: 착용하면 해당 능력치가 이 비율만큼 늘어남 (등급 배율, 강화 배율이 곱해짐)
+    weapon: { atk: 0.25, mag: 0.25, spd: 0.02 },
+    hat: { hp: 0.10, def: 0.10 },
+    armor: { hp: 0.15, def: 0.15 },
+    ring: { atk: 0.06, mag: 0.06, hp: 0.05 },
   },
-
   // 직업(무기 종류): 장비는 직업별로 착용 가능. 드롭 직업은 활성화된 것 중 랜덤
   classes: { melee: '근접', ranged: '원거리', mage: '마법' },
   enabledClasses: ['melee', 'ranged', 'mage'],

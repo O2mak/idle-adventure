@@ -65,7 +65,7 @@ function newSave(animal, name, cls) {
   const sv = {
     v: 2, animal: animal || 'dog', name: name || '모험가',
     gold: 0, level: 1, exp: 0, kills: 0, playTime: 0, today: { date: dayKey(), sec: 0 },
-    lvUnit: CFG.lvUnit, autoStat: 1, animalLocked: true, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
+    lvUnit: CFG.lvUnit, autoStat: 1, gearPct: 1, animalLocked: true, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
     best: { region: 1, round: 1 },
     clearedRegions: [], permPoints: 0, pendingPoints: 0,   // permPoints=지금 쓸 수 있는 포인트, pendingPoints=이번 시즌에 모은 포인트(다음 시즌에 사용 가능)
     perm: { atk: 0, hp: 0, mag: 0, gold: 0, drop: 0, exp: 0 }, titles: [],
@@ -93,6 +93,10 @@ function mergeSave(raw) {
   if (needLockFix) { out.lock = false; out.lockFix = 1; }   // 예전 버전이 쓰러질 때 자동으로 켠 '라운드 고정'을 한 번 풀어 줌
   for (const k of ['stats', 'up', 'equip', 'best', 'perm', 'endless', 'buff', 'ads']) out[k] = Object.assign(base[k], raw[k] || {});
   if (!Array.isArray(out.titles)) out.titles = [];
+  if (!raw.gearPct) {   // 장비 성능이 지역별 고정 수치였던 옛 저장: 등급 기준 비율 방식으로 다시 계산
+    for (const it of out.inv.concat(CFG.slots.map((sl) => out.equip[sl]).filter(Boolean))) it.opts = makeItem({ nextUid: 0 }, it.slot, it.grade, it.region, it.cls).opts;
+    out.gearPct = 1;
+  }
   if (!(out.invCap >= CFG.inv.start)) out.invCap = CFG.inv.start;   // 기본 보관함이 늘어난 경우 옛 저장도 맞춰 줌
   if (!raw.lvUnit) {   // 성장 레벨을 묶음 단위로 바꾸기 전 저장 데이터: 레벨을 묶음으로 줄이고, 남는 레벨의 비용은 골드로 돌려줌
     const U = CFG.lvUnit, L = CFG.legacyCost;
@@ -155,13 +159,14 @@ function calcStats(s) {
   hp += lv * CFG.level.hp; atk += lv * CFG.level.atk; mag += lv * CFG.level.mag;
   const pm = s.perm || {}, PI = CFG.perm.items; // 영구 포인트 투자 (고정 수치)
   hp += (pm.hp || 0) * PI.hp.per; atk += (pm.atk || 0) * PI.atk.per; mag += (pm.mag || 0) * PI.mag.per;
+  let gH = 0, gA = 0, gM = 0, gD = 0;   // 장비: 능력치에 곱해지는 비율의 합 (등급·강화에 따라 커짐)
   for (const slot of CFG.slots) {
     const it = s.equip[slot];
     if (!it) continue;
     const m = enhMul(it), o = it.opts;
-    hp += (o.hp || 0) * m; atk += (o.atk || 0) * m; mag += (o.mag || 0) * m;
-    def += (o.def || 0) * m; spdB += (o.spd || 0) * m;
+    gH += (o.hp || 0) * m; gA += (o.atk || 0) * m; gM += (o.mag || 0) * m; gD += (o.def || 0) * m; spdB += (o.spd || 0) * m;
   }
+  hp *= 1 + gH; atk *= 1 + gA; mag *= 1 + gM; def *= 1 + gD;
   const ci = CFG.classInfo[s.weaponType];
   const ab = 1 + awakenBonus(s.equip.weapon); atk *= ab; mag *= ab;   // 무기 각성: 최종 공격력/마력 배율
   hp *= ci.hp; // 직업별 체력 배율 (전사 튼튼, 궁수/마법사 약함)
@@ -235,9 +240,8 @@ function skillOpen(s, i) { const sk = skillList(s)[i]; return !!sk && (s.level |
 
 // ---------- 장비 ----------
 function makeItem(s, slot, grade, region, cls) {
-  const sc = Math.pow(CFG.itemScale, region - 1) * CFG.gradeMul[grade];
   const opts = {};
-  for (const [k, v] of Object.entries(CFG.slotBase[slot])) opts[k] = k === 'spd' ? v * CFG.gradeMul[grade] : v * sc;
+  for (const [k, v] of Object.entries(CFG.slotBase[slot])) opts[k] = v * CFG.gradeMul[grade];   // 지역과 무관: 등급으로만 결정
   const rg = CFG.regions[region - 1];
   return { uid: s.nextUid++, slot, grade, region, cls, enh: 0, opts, name: `${rg.prefix}의 ${CFG.itemNouns[cls][slot]}` };
 }
@@ -246,20 +250,20 @@ function makeItem(s, slot, grade, region, cls) {
 function itemScore(it) {
   if (!it) return 0;
   const o = it.opts;
-  const base = (o.atk || 0) + (o.mag || 0) + (o.hp || 0) * 0.15 + (o.def || 0) * 4 + (o.spd || 0) * 200;
+  const base = (o.atk || 0) + (o.mag || 0) + (o.hp || 0) * 0.7 + (o.def || 0) * 0.7 + (o.spd || 0) * 5;
   return base * enhMul(it);
 }
 
 function itemDesc(it) {
   const m = enhMul(it);
   const n = { atk: '공격력', mag: '마력', hp: '체력', def: '방어력', spd: '신속' };
-  return Object.entries(it.opts).map(([k, v]) => k === 'spd' ? `${n[k]} +${(v * m * 100).toFixed(1)}%` : `${n[k]} +${fmt(v * m)}`).join(' · ');
+  return Object.entries(it.opts).map(([k, v]) => `${n[k]} +${(v * m * 100).toFixed(k === 'spd' ? 1 : 0)}%`).join(' · ');
 }
 
 function rollGrade(rt, region, boss) {
-  const shift = (region - 1) * 0.6 + (boss ? 1.2 : 0);
-  const w = CFG.gradeWeights.map((x, g) => x * Math.pow(1 + shift, g));
-  w.push(region >= CFG.legend.region ? CFG.legend.weight : 0);
+  // 아직 해금되지 않은 등급은 나오지 않음. 보스는 높은 등급 쪽으로 조금 치우침
+  const shift = boss ? 1.2 : 0;
+  const w = CFG.gradeWeights.map((x, g) => (region >= CFG.gradeUnlock[g] ? x * Math.pow(1 + shift, g) : 0));
   let r = rt.rng() * w.reduce((a, b) => a + b, 0);
   for (let g = 0; g < w.length; g++) { r -= w[g]; if (r <= 0) return g; }
   return 0;
@@ -341,16 +345,16 @@ function mergeCount(s, slot, grade) {
   for (const it of s.inv) if (it.slot === slot && it.grade === grade) n++;
   return n;
 }
-function canMergeGrade(grade) { return grade + 1 <= CFG.merge.maxResultGrade; }
+function canMergeGrade(grade, s) { return grade + 1 <= CFG.merge.maxResultGrade && (!s || s.best.region >= CFG.gradeUnlock[grade + 1]); }   // 합성 결과 등급이 해금된 뒤에만
 
 // 같은 부위 + 같은 등급 N개 → 한 단계 위 등급 장비 1개 (부위/직업 랜덤, 무기 제외, 강화 소멸)
 function mergeGroup(rt, slot, grade) {
   const s = rt.save, need = CFG.merge.need;
-  if (!canMergeGrade(grade) || mergeCount(s, slot, grade) < need) return false;
+  if (!canMergeGrade(grade, s) || mergeCount(s, slot, grade) < need) return false;
   const pool = s.inv.filter((x) => x.slot === slot && x.grade === grade)
     .sort((a, b) => (a.enh - b.enh) || (itemScore(a) - itemScore(b))).slice(0, need);
   const ids = new Set(pool.map((x) => x.uid));
-  const region = Math.max(...pool.map((x) => x.region));
+  const region = Math.max(CFG.gradeUnlock[grade + 1], ...pool.map((x) => x.region));
   s.inv = s.inv.filter((x) => !ids.has(x.uid));
   const item = makeItem(s, pickRandom(rt, CFG.merge.resultSlots), grade + 1, region, pickRandom(rt, CFG.enabledClasses));
   addItem(rt, item, true);
@@ -363,7 +367,7 @@ function mergeAll(rt) {
   let n = 0, again = true;
   while (again) {
     again = false;
-    for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g); g++) {
+    for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g, rt.save); g++) {
       if (mergeGroup(rt, slot, g)) { n++; again = true; }
     }
   }
@@ -427,7 +431,8 @@ function tryAwaken(rt) {
 }
 
 function enhCostFn(it) {
-  return (lv) => niceNum(costOf(CFG.enh.cost, lv) * Math.pow(CFG.itemScale, it.region - 1) * (1 + 0.5 * it.grade));
+  // 강화 가격은 장비 등급이 처음 나오는 지역의 수입 수준에 맞춰짐 (지역이 아니라 등급 기준)
+  return (lv) => niceNum(costOf(CFG.enh.cost, lv) * Math.pow(CFG.itemScale, CFG.gradeUnlock[it.grade] - 1));
 }
 function buyEnh(s, slot, qty) {
   const it = s.equip[slot];
