@@ -65,7 +65,7 @@ function newSave(animal, name, cls) {
   const sv = {
     v: 2, animal: animal || 'dog', name: name || '모험가',
     gold: 0, level: 1, exp: 0, kills: 0, playTime: 0, today: { date: dayKey(), sec: 0 },
-    lvUnit: CFG.lvUnit, autoStat: 1, gearPct: 1, animalLocked: true, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
+    lvUnit: CFG.lvUnit, autoStat: 1, gearPct: 1, nameV: 1, animalLocked: true, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
     best: { region: 1, round: 1 },
     clearedRegions: [], permPoints: 0, pendingPoints: 0,   // permPoints=지금 쓸 수 있는 포인트, pendingPoints=이번 시즌에 모은 포인트(다음 시즌에 사용 가능)
     perm: { atk: 0, hp: 0, mag: 0, gold: 0, drop: 0, exp: 0 }, titles: [],
@@ -96,6 +96,10 @@ function mergeSave(raw) {
   if (!raw.gearPct) {   // 장비 성능이 지역별 고정 수치였던 옛 저장: 등급 기준 비율 방식으로 다시 계산
     for (const it of out.inv.concat(CFG.slots.map((sl) => out.equip[sl]).filter(Boolean))) it.opts = makeItem({ nextUid: 0 }, it.slot, it.grade, it.region, it.cls).opts;
     out.gearPct = 1;
+  }
+  if (!raw.nameV) {   // 장비 이름 체계가 바뀌기 전의 저장: 이름을 새 방식으로 다시 붙임
+    for (const it of out.inv.concat(CFG.slots.map((sl) => out.equip[sl]).filter(Boolean))) it.name = itemName(it.slot, it.grade, it.cls, it.uid);
+    out.nameV = 1;
   }
   if (!(out.invCap >= CFG.inv.start)) out.invCap = CFG.inv.start;   // 기본 보관함이 늘어난 경우 옛 저장도 맞춰 줌
   if (!raw.lvUnit) {   // 성장 레벨을 묶음 단위로 바꾸기 전 저장 데이터: 레벨을 묶음으로 줄이고, 남는 레벨의 비용은 골드로 돌려줌
@@ -172,6 +176,7 @@ function calcStats(s) {
   const ab = 1 + awakenBonus(s.equip.weapon); atk *= ab; mag *= ab;   // 무기 각성: 최종 공격력/마력 배율
   hp *= ci.hp; // 직업별 체력 배율 (전사 튼튼, 궁수/마법사 약함)
   const ap = animalPassive(s); if (ap && ap.hpMul) hp *= ap.hpMul;   // 동물 패시브
+  hp *= weaponTrait(s).hpMul || 1;   // 전설 무기 특성
   const spd = P.spd * (1 + spdB);
   const main = ci.stat === 'mag' ? mag : atk;
   return { hp, atk, mag, def, spd, main, plain: main * ci.plain };
@@ -243,9 +248,20 @@ function skillOpen(s, i) { const sk = skillList(s)[i]; return !!sk && (s.level |
 function makeItem(s, slot, grade, region, cls) {
   const opts = {};
   for (const [k, v] of Object.entries(CFG.slotBase[slot])) opts[k] = v * CFG.gradeMul[grade];   // 지역과 무관: 등급으로만 결정
-  const rg = CFG.regions[region - 1];
-  return { uid: s.nextUid++, slot, grade, region, cls, enh: 0, opts, name: `${rg.prefix}의 ${CFG.itemNouns[cls][slot]}` };
+  const uid = s.nextUid++;
+  return { uid, slot, grade, region, cls, enh: 0, opts, name: itemName(slot, grade, cls, uid) };
 }
+// 장비 번호로 고정된 무작위 선택 (같은 장비는 항상 같은 이름/전설)
+function pickByUid(arr, uid) {
+  let h = Math.imul(uid ^ 0x9e3779b9, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+  return arr[(h >>> 0) % arr.length];
+}
+function legendOf(it) { return it && it.slot === 'weapon' && it.grade === 4 && CFG.legendWeapons[it.cls] ? pickByUid(CFG.legendWeapons[it.cls], it.uid) : null; }
+function itemName(slot, grade, cls, uid) {
+  if (slot === 'weapon' && grade === 4 && CFG.legendWeapons[cls]) return pickByUid(CFG.legendWeapons[cls], uid).name;
+  return `${pickByUid(CFG.namePrefix[grade], uid)} ${CFG.itemNouns[cls][slot]}`;
+}
+function weaponTrait(s) { const l = legendOf(s.equip.weapon); return l ? l.trait : {}; }
 
 // 강화를 반영한 전투력 점수 (비교용)
 function itemScore(it) {
@@ -258,7 +274,8 @@ function itemScore(it) {
 function itemDesc(it) {
   const m = enhMul(it);
   const n = { atk: '공격력', mag: '마력', hp: '체력', def: '방어력', spd: '신속' };
-  return Object.entries(it.opts).map(([k, v]) => `${n[k]} +${(v * m * 100).toFixed(k === 'spd' ? 1 : 0)}%`).join(' · ');
+  const lg = legendOf(it);
+  return Object.entries(it.opts).map(([k, v]) => `${n[k]} +${(v * m * 100).toFixed(k === 'spd' ? 1 : 0)}%`).join(' · ') + (lg ? `<br>✦ ${lg.desc}` : '');
 }
 
 function rollGrade(rt, region, boss) {
@@ -508,6 +525,7 @@ function dealDamage(rt, e, dmg, label) {
   let mul = 1;
   if (e.boss) {
     if (rt.weak) mul *= C.weakMul;
+    mul *= 1 + (weaponTrait(rt.save).bossDmg || 0);   // 전설 무기: 보스 피해
     if (e.hp / e.maxhp <= C.lowHp) mul *= C.lowMul;
   }
   if (e.boss && rt.shielded && !rt.weak) mul *= rt.shieldMul;       // 방어막: 약점이 드러났을 때만 제대로 들어감
@@ -546,7 +564,8 @@ function castSkill(rt, i) {
     if (sk.aoe) { for (const e of rt.enemies.slice()) { if (e.x <= sk.range) dealDamage(rt, e, dmg, h === 0 ? sk.name : ''); } }
     else dealDamage(rt, target, dmg, h === 0 ? sk.name : '');
   }
-  rt.cd[i] = sk.cd; rt.cdMax[i] = sk.cd; rt.castAt = rt.clock; rt.hitAt = rt.clock; sfx(rt, 'skill');
+  const cdv = sk.cd * (1 - (weaponTrait(s).cdr || 0));   // 전설 무기: 쿨타임 감소
+  rt.cd[i] = cdv; rt.cdMax[i] = cdv; rt.castAt = rt.clock; rt.hitAt = rt.clock; sfx(rt, 'skill');
   collectDead(rt);
   return true;
 }
@@ -636,7 +655,7 @@ function collectDead(rt) {
     rt.kills++;
     if (rt.endless) { sfx(rt, 'kill'); continue; } // 무한 모드: 골드/경험치/드롭 없음
     const bm = burnMul(s), rb = (k) => (s.buff && s.buff[k] && s.buff[k].sec > 0 ? s.buff[k].mul : 1);
-    const g = niceNum(e.gold * (1 + CFG.goldUp.per * s.up.gold) * permMul(s, 'gold') * bm * rb('gold'));   // 100, 150, 200, 300 처럼 딱 떨어지는 값
+    const g = niceNum(e.gold * (1 + CFG.goldUp.per * s.up.gold + (weaponTrait(s).goldMul || 0)) * permMul(s, 'gold') * bm * rb('gold'));   // 100, 150, 200, 300 처럼 딱 떨어지는 값
     s.gold += g; s.kills = (s.kills || 0) + 1;
     fx(rt, e.x, '+' + fmt(g) + 'G', '#ffd35a');
     sfx(rt, 'kill');
@@ -925,6 +944,8 @@ function step(rt, dt) {
       dealDamage(rt, target, d.plain, '');
       const ap = animalPassive(s);
       if (ap && ap.procChance && rt.rng() < ap.procChance && rt.enemies.includes(target)) dealDamage(rt, target, d.plain * ap.procMul, '연타');
+      const wt = weaponTrait(s);
+      if (wt.procChance && rt.rng() < wt.procChance && rt.enemies.includes(target)) dealDamage(rt, target, d.plain * wt.procMul, '추가타');
       collectDead(rt);
     }
   } else if (rt.atkT > interval) rt.atkT = interval;

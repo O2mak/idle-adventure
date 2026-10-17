@@ -179,11 +179,11 @@ const CFG = {
   enabledClasses: ['melee', 'ranged', 'mage'],
   // 직업별 성격: curve=[캐릭터 레벨, 주력 능력치 배율] (전사는 초반에 강하고, 마법사는 후반에 강하게), hp=체력 배율, plain=평타 피해 배율, skill=스킬 피해 배율, range=사거리, stat=쓰는 능력치
   classInfo: {
-    melee: { title: '전사', weapon: '칼', range: 50, hp: 1.3, plain: 1.0, skill: 1.0, stat: 'atk', recommend: true, curve: [[1, 3.2], [24, 4.5], [38, 4.5], [50, 2.2], [70, 1.1], [100, 0.8]],
+    melee: { title: '전사', weapon: '칼', range: 50, hp: 1.3, plain: 1.0, skill: 1.0, stat: 'atk', recommend: true, curve: [[1, 3.2], [24, 4.5], [38, 4.5], [50, 2.3], [70, 1.3], [100, 1.0]],
       desc: '사거리는 짧지만 몸이 튼튼해요. 처음 시작하기 가장 쉬워요.' },
     ranged: { title: '궁수', weapon: '활', range: 140, hp: 0.7, plain: 0.9, skill: 0.65, stat: 'atk', recommend: false, curve: [[1, 0.6], [40, 0.65], [60, 0.9], [100, 1.2]],
       desc: '멀리서 쏘는 평타가 강해요. 몸은 약해요.' },
-    mage: { title: '마법사', weapon: '스태프', range: 120, hp: 0.7, plain: 0.6, skill: 1.2, stat: 'mag', recommend: false, curve: [[1, 0.45], [40, 0.5], [60, 0.85], [75, 1.3], [100, 1.5]],
+    mage: { title: '마법사', weapon: '스태프', range: 120, hp: 0.7, plain: 0.6, skill: 1.2, stat: 'mag', recommend: false, curve: [[1, 0.38], [40, 0.42], [60, 0.8], [75, 1.0], [100, 1.1]],
       desc: '스킬이 아주 강하지만 평타는 약해요. 초반에는 조금 어려워요. (마력을 올려요)' },
   },
   swap: { freeUntil: 10, feeMul: 300 }, // 직업(무기) 교체: 캐릭터 Lv.10 미만은 무료, 이후 비용 = 최고 도달 지역 몬스터 골드 x feeMul. 직업이 다른 장비는 보관함으로 가서 새 직업 장비를 다시 맞춰야 함
@@ -191,6 +191,28 @@ const CFG = {
     melee: { weapon: '검', hat: '방울 비니', armor: '망토 조끼', ring: '방울 목걸이' },
     ranged: { weapon: '활', hat: '깃털 베레모', armor: '스카프 조끼', ring: '방울 목걸이' },
     mage: { weapon: '스태프', hat: '별 마법모자', armor: '별빛 로브', ring: '방울 목걸이' },
+  },
+
+  // 장비 이름: 등급마다 붙는 수식어(장비 번호로 고정되어 섞여 나옴). 전설 무기는 아래 legendWeapons의 고유 이름과 특성을 가짐
+  namePrefix: [['낡은', '녹슨', '오래된'], ['평범한', '튼튼한', '쓸만한'], ['빛나는', '숙련자의', '정교한'], ['영웅의', '용사의', '기사단의'], ['전설의']],
+  // 전설 무기: 직업마다 세 종류. trait = 착용하면 적용되는 특성
+  //  bossDmg: 보스에게 주는 피해 +, cdr: 스킬 쿨타임 감소 비율, procChance/procMul: 기본 공격 때 추가 타격 확률/피해 배율, hpMul: 최대 체력 배율, goldMul: 골드 획득량 +
+  legendWeapons: {
+    melee: [
+      { name: '엑스칼리버', desc: '왕의 검. 보스에게 주는 피해 +20%', trait: { bossDmg: 0.2 } },
+      { name: '청룡언월도', desc: '청룡의 기세. 스킬 쿨타임 -15%', trait: { cdr: 0.15 } },
+      { name: '쿠사나기의 검', desc: '풀을 베는 신검. 기본 공격 때 15% 확률로 한 번 더 벱니다(피해 60%)', trait: { procChance: 0.15, procMul: 0.6 } },
+    ],
+    ranged: [
+      { name: '주몽의 활', desc: '백발백중. 기본 공격 때 15% 확률로 화살을 한 발 더 쏩니다(피해 60%)', trait: { procChance: 0.15, procMul: 0.6 } },
+      { name: '아르테미스의 달궁', desc: '달빛 사냥. 골드 획득량 +10%', trait: { goldMul: 0.1 } },
+      { name: '라의 태양궁', desc: '태양신의 활. 보스에게 주는 피해 +20%', trait: { bossDmg: 0.2 } },
+    ],
+    mage: [
+      { name: '메를린의 지팡이', desc: '대마법사의 지팡이. 스킬 쿨타임 -15%', trait: { cdr: 0.15 } },
+      { name: '서왕모의 복숭아 지팡이', desc: '불로장생의 힘. 최대 체력 +15%', trait: { hpMul: 1.15 } },
+      { name: '아누비스의 홀', desc: '심판의 홀. 보스에게 주는 피해 +20%', trait: { bossDmg: 0.2 } },
+    ],
   },
 
   // 보관함 / 합성 / 분해
