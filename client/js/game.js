@@ -374,6 +374,8 @@ function enhMax(it) { return it.slot === 'weapon' ? CFG.enh.awaken.max : CFG.enh
 function awakenBonus(it) { return it && it.slot === 'weapon' && it.enh > CFG.enh.max ? CFG.enh.awaken.bonus[it.enh - CFG.enh.max - 1] : 0; }
 // +10 -> +11 처럼 n(11~15)강으로 올리는 도전 1회 비용: 공격력 스탯 refLevel레벨 가격의 일정 배수
 function awakenCost(n) { const A = CFG.enh.awaken; return Math.floor(costOf(CFG.statCost.atk, A.refLevel) * A.costMul[n - CFG.enh.max - 1]); }
+// 지금 도전의 성공 확률 (기본 확률 + 연속 실패 보너스)
+function awakenChance(w) { const A = CFG.enh.awaken; return Math.min(1, A.chance[w.enh + 1 - CFG.enh.max - 1] + Math.min(A.pityMax, (w.pity || 0) * A.pityStep)); }
 // 무기 각성 도전. 결과: { ok:false, reason } 또는 { ok:true, success, from, to, cost }
 function tryAwaken(rt) {
   const s = rt.save, w = s.equip.weapon, A = CFG.enh.awaken;
@@ -383,9 +385,9 @@ function tryAwaken(rt) {
   const n = w.enh + 1, cost = awakenCost(n);
   if (s.gold < cost) return { ok: false, reason: '골드가 부족해요.' };
   s.gold -= cost;
-  const from = w.enh, success = rt.rng() < A.chance[n - CFG.enh.max - 1];
-  if (success) w.enh = n;
-  else if (n >= A.dropFrom) w.enh = from - 1;
+  const from = w.enh, success = rt.rng() < awakenChance(w);
+  if (success) { w.enh = n; w.pity = 0; }
+  else { w.pity = (w.pity || 0) + 1; if (n >= A.dropFrom) { w.enh = from - 1; } }
   refresh(rt);
   msg(rt, success ? `무기 각성 성공! +${from} → +${n}` : `무기 각성 실패... ${n >= A.dropFrom ? `+${from} → +${w.enh}` : `+${from} 유지`}`, success ? 'ok' : 'bad');
   sfx(rt, success ? 'win' : 'fail');
@@ -840,6 +842,7 @@ function step(rt, dt) {
 }
 
 if (typeof module !== 'undefined') module.exports = { CFG };
+
 
 
 

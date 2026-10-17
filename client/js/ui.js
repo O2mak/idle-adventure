@@ -186,7 +186,7 @@ function uiAct(act) {
       const w = s.equip.weapon;
       if (!w || w.enh < CFG.enh.max || w.enh >= CFG.enh.awaken.max) break;
       const A = CFG.enh.awaken, n = w.enh + 1, i = n - CFG.enh.max - 1;
-      const text = `무기를 +${w.enh} → +${n} 로 각성할까요?\n\n비용 ${fmt(awakenCost(n))} G (실패해도 돌려받지 못해요)\n성공 확률 ${Math.round(A.chance[i] * 100)}%\n성공하면 최종 공격력·마력 +${Math.round(A.bonus[i] * 100)}%` +
+      const text = `무기를 +${w.enh} → +${n} 로 각성할까요?\n\n비용 ${fmt(awakenCost(n))} G (실패해도 돌려받지 못해요)\n성공 확률 ${Math.round(awakenChance(w) * 100)}% (연속으로 실패하면 확률이 조금씩 올라가요)\n성공하면 최종 공격력·마력 +${Math.round(A.bonus[i] * 100)}%` +
         (n >= A.dropFrom ? `\n\n실패하면 +${w.enh - 1}로 내려갑니다!` : '') + '\n\n보통은 스탯에 투자하는 것이 훨씬 이득이에요. 정말 도전할까요?';
       if (confirm(text)) { const r = tryAwaken(rt); UI.sel = { t: 'eq', k: 'weapon' }; if (r.ok) UI.awkResult = { ...r, at: Date.now() }; }
       break;
@@ -369,9 +369,9 @@ function panelDetail() {
     const A = CFG.enh.awaken, n = it.enh + 1;
     if (it.enh >= A.max) awk = '<div class="awaken"><b>최대 각성 (+15)</b></div>';
     else {
-      const cost = awakenCost(n), p = Math.round(A.chance[n - CFG.enh.max - 1] * 100), gain = Math.round(A.bonus[n - CFG.enh.max - 1] * 100);
+      const cost = awakenCost(n), p = Math.round(awakenChance(it) * 100), pity = Math.round(Math.min(A.pityMax, (it.pity || 0) * A.pityStep) * 100), gain = Math.round(A.bonus[n - CFG.enh.max - 1] * 100);
       awk = `<div class="awaken"><b>무기 각성 +${it.enh} → +${n}</b>` +
-        `<small>성공 확률 ${p}% · 비용 ${fmt(cost)} G (실패해도 사라져요)<br>성공하면 최종 공격력·마력 +${gain}%` +
+        `<small>성공 확률 ${p}%${pity ? ` (연속 실패 보너스 +${pity}%)` : ''} · 비용 ${fmt(cost)} G (실패해도 사라져요)<br>성공하면 최종 공격력·마력 +${gain}%` +
         `${n >= A.dropFrom ? `<br><span class="down">실패하면 +${it.enh - 1}로 내려가요</span>` : ''}</small>` +
         `<button class="danger" data-act="awaken" ${s.gold >= cost ? '' : 'disabled'}>도전 (${fmt(cost)} G)</button></div>`;
     }
@@ -733,6 +733,7 @@ function uiUpdateSkills() {
     btns[i].classList.toggle('glow', open && cd <= 0 && boss && rt.weak && i === ult);
   }
 }
+
 
 
 
