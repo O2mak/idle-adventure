@@ -127,11 +127,12 @@ function calcStats(s) {
   for (const slot of CFG.slots) {
     const it = s.equip[slot];
     if (!it) continue;
-    const m = 1 + it.enh * CFG.enh.per, o = it.opts;
+    const m = enhMul(it), o = it.opts;
     hp += (o.hp || 0) * m; atk += (o.atk || 0) * m; mag += (o.mag || 0) * m;
     def += (o.def || 0) * m; spdB += (o.spd || 0) * m;
   }
   const ci = CFG.classInfo[s.weaponType];
+  const ab = 1 + awakenBonus(s.equip.weapon); atk *= ab; mag *= ab;   // 무기 각성: 최종 공격력/마력 배율
   hp *= ci.hp; // 직업별 체력 배율 (전사 튼튼, 궁수/마법사 약함)
   const ap = animalPassive(s); if (ap && ap.hpMul) hp *= ap.hpMul;   // 동물 패시브
   const spd = P.spd * (1 + spdB);
@@ -215,11 +216,11 @@ function itemScore(it) {
   if (!it) return 0;
   const o = it.opts;
   const base = (o.atk || 0) + (o.mag || 0) + (o.hp || 0) * 0.15 + (o.def || 0) * 4 + (o.spd || 0) * 200;
-  return base * (1 + it.enh * CFG.enh.per);
+  return base * enhMul(it);
 }
 
 function itemDesc(it) {
-  const m = 1 + it.enh * CFG.enh.per;
+  const m = enhMul(it);
   const n = { atk: '공격력', mag: '마력', hp: '체력', def: '방어력', spd: '신속' };
   return Object.entries(it.opts).map(([k, v]) => k === 'spd' ? `${n[k]} +${(v * m * 100).toFixed(1)}%` : `${n[k]} +${fmt(v * m)}`).join(' · ');
 }
@@ -367,13 +368,38 @@ function buyUp(s, key, qty) {
   const p = planBuy((lv) => costOf(CFG[key + 'Up'].cost, lv), s.up[key], qty, s.gold);
   s.gold -= p.total; s.up[key] += p.n; return p.n;
 }
+// 일반 강화 배율(+10까지 단계마다 +20%). 무기 +11 이후는 별도의 '각성' 보너스를 씀
+function enhMul(it) { return 1 + Math.min(it.enh, CFG.enh.max) * CFG.enh.per; }
+function enhMax(it) { return it.slot === 'weapon' ? CFG.enh.awaken.max : CFG.enh.max; }
+function awakenBonus(it) { return it && it.slot === 'weapon' && it.enh > CFG.enh.max ? CFG.enh.awaken.bonus[it.enh - CFG.enh.max - 1] : 0; }
+// +10 -> +11 처럼 n(11~15)강으로 올리는 도전 1회 비용: 공격력 스탯 refLevel레벨 가격의 일정 배수
+function awakenCost(n) { const A = CFG.enh.awaken; return Math.floor(costOf(CFG.statCost.atk, A.refLevel) * A.costMul[n - CFG.enh.max - 1]); }
+// 무기 각성 도전. 결과: { ok:false, reason } 또는 { ok:true, success, from, to, cost }
+function tryAwaken(rt) {
+  const s = rt.save, w = s.equip.weapon, A = CFG.enh.awaken;
+  if (!w) return { ok: false, reason: '무기가 없어요.' };
+  if (w.enh < CFG.enh.max) return { ok: false, reason: `일반 강화를 +${CFG.enh.max}까지 먼저 올려 주세요.` };
+  if (w.enh >= A.max) return { ok: false, reason: '이미 최대 각성이에요.' };
+  const n = w.enh + 1, cost = awakenCost(n);
+  if (s.gold < cost) return { ok: false, reason: '골드가 부족해요.' };
+  s.gold -= cost;
+  const from = w.enh, success = rt.rng() < A.chance[n - CFG.enh.max - 1];
+  if (success) w.enh = n;
+  else if (n >= A.dropFrom) w.enh = from - 1;
+  refresh(rt);
+  msg(rt, success ? `무기 각성 성공! +${from} → +${n}` : `무기 각성 실패... ${n >= A.dropFrom ? `+${from} → +${w.enh}` : `+${from} 유지`}`, success ? 'ok' : 'bad');
+  sfx(rt, success ? 'win' : 'fail');
+  if (success) rt.happyAt = rt.clock;
+  return { ok: true, success, from, to: w.enh, cost };
+}
+
 function enhCostFn(it) {
   return (lv) => Math.floor(costOf(CFG.enh.cost, lv) * Math.pow(CFG.itemScale, it.region - 1) * (1 + 0.5 * it.grade));
 }
 function buyEnh(s, slot, qty) {
   const it = s.equip[slot];
   if (!it) return 0;
-  const p = planBuy(enhCostFn(it), it.enh, qty, s.gold, CFG.enh.max);
+  const p = planBuy(enhCostFn(it), it.enh, qty, s.gold, CFG.enh.max);   // 일반 강화는 +10까지 (그 이상은 무기 각성)
   s.gold -= p.total; it.enh += p.n; return p.n;
 }
 function buySkill(s, i, qty) {
@@ -502,7 +528,8 @@ function investedAll(s) {
   for (let lv = 0; lv < s.up.drop; lv++) t += costOf(CFG.dropUp.cost, lv);
   for (const it of s.inv.concat(CFG.slots.map((sl) => s.equip[sl]).filter(Boolean))) {
     const f = enhCostFn(it);
-    for (let lv = 0; lv < it.enh; lv++) t += f(lv);
+    for (let lv = 0; lv < Math.min(it.enh, CFG.enh.max); lv++) t += f(lv);
+    for (let n = CFG.enh.max + 1; n <= it.enh; n++) t += awakenCost(n);
   }
   for (let c = CFG.inv.start; c < s.invCap; c += CFG.inv.step) t += costOf(CFG.inv.cost, (c - CFG.inv.start) / CFG.inv.step);
   return t;
@@ -813,6 +840,7 @@ function step(rt, dt) {
 }
 
 if (typeof module !== 'undefined') module.exports = { CFG };
+
 
 
 

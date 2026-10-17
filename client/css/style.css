@@ -297,3 +297,10 @@ html.wide #tabBody { padding: 0; overflow: hidden; }
 .cols > section:last-child { border-right: none; }
 .cols > section > h2 { display: flex; align-items: center; margin: 0 0 10px; font-size: 15px; color: var(--accent); }
 .cols .grid { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); }
+
+/* 무기 각성 */
+.awaken { margin-top: 10px; padding: 8px 10px; border: 1px solid #7a3a2a; background: #2a1a1a; border-radius: 8px; }
+.awaken b { display: block; color: #ff9a6a; margin-bottom: 2px; }
+.awaken small { display: block; color: var(--dim); margin-bottom: 6px; line-height: 1.5; }
+.tstat.awk { color: #ff9a6a; font-weight: bold; }
+.cell .enh.hi { color: #ff7a5a; }

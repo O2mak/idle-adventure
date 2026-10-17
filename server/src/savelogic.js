@@ -98,7 +98,7 @@ export function validateSave(old, s, elapsedSec, now = Date.now()) {
   if (!s.equip || typeof s.equip !== 'object') fatal.push('장비 값이 올바르지 않아요');
   else for (const sl of SLOTS) {
     const it = s.equip[sl];
-    if (it && (it.cls !== s.weaponType || it.slot !== sl || !isNum(it.grade) || it.grade < 0 || it.grade >= CFG.gradeNames.length || !isNum(it.enh) || it.enh < 0 || it.enh > CFG.enh.max || !CFG.classes[it.cls])) fatal.push('장비 값이 올바르지 않아요');
+    if (it && (it.cls !== s.weaponType || it.slot !== sl || !isNum(it.grade) || it.grade < 0 || it.grade >= CFG.gradeNames.length || !isNum(it.enh) || it.enh < 0 || it.enh > (sl === 'weapon' ? CFG.enh.awaken.max : CFG.enh.max) || !CFG.classes[it.cls])) fatal.push('장비 값이 올바르지 않아요');
   }
   if (!s.perm || typeof s.perm !== 'object') fatal.push('영구 투자 값이 올바르지 않아요');
   else for (const k of Object.keys(CFG.perm.items)) { const v = s.perm[k]; if (!Number.isInteger(v) || v < 0 || v > CFG.perm.maxLv) { fatal.push('영구 투자 값이 올바르지 않아요'); break; } }
@@ -158,4 +158,5 @@ export function validateSave(old, s, elapsedSec, now = Date.now()) {
   }
   return { fatal, flags };
 }
+
 

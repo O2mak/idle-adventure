@@ -182,6 +182,15 @@ function uiAct(act) {
     case 'sound': { const on = Sound.sfxOn || Sound.bgmOn; Sound.setOn(!on, !on); break; }
     case 'sfx': Sound.setOn(!Sound.sfxOn, Sound.bgmOn); break;
     case 'bgm': Sound.setOn(Sound.sfxOn, !Sound.bgmOn); break;
+    case 'awaken': {
+      const w = s.equip.weapon;
+      if (!w || w.enh < CFG.enh.max || w.enh >= CFG.enh.awaken.max) break;
+      const A = CFG.enh.awaken, n = w.enh + 1, i = n - CFG.enh.max - 1;
+      const text = `무기를 +${w.enh} → +${n} 로 각성할까요?\n\n비용 ${fmt(awakenCost(n))} G (실패해도 돌려받지 못해요)\n성공 확률 ${Math.round(A.chance[i] * 100)}%\n성공하면 최종 공격력·마력 +${Math.round(A.bonus[i] * 100)}%` +
+        (n >= A.dropFrom ? `\n\n실패하면 +${w.enh - 1}로 내려갑니다!` : '') + '\n\n보통은 스탯에 투자하는 것이 훨씬 이득이에요. 정말 도전할까요?';
+      if (confirm(text)) { const r = tryAwaken(rt); UI.sel = { t: 'eq', k: 'weapon' }; if (r.ok) UI.awkResult = { ...r, at: Date.now() }; }
+      break;
+    }
     case 'roulette': rouletteAct(b); return;
     case 'fbcat': UI.fbCat = b; break;
     case 'fb': sendFeedbackUi(); return;
@@ -299,7 +308,8 @@ function itemInfoHtml(it, where) {
   let h = `<div class="tname">${itemTitle(it)}</div>` +
     `<div class="tsub">${CFG.slotNames[it.slot]} · ${CFG.classes[it.cls]} 전용 · ${esc(CFG.regions[it.region - 1].name)} 장비</div>` +
     `<div class="tstat">${itemDesc(it)}</div>`;
-  if (it.enh) h += `<div class="tsub">강화 +${it.enh} (효과 +${Math.round(it.enh * CFG.enh.per * 100)}%)</div>`;
+  if (it.enh) h += `<div class="tsub">강화 +${it.enh} (효과 +${Math.round(Math.min(it.enh, CFG.enh.max) * CFG.enh.per * 100)}%)</div>`;
+  if (awakenBonus(it) > 0) h += `<div class="tstat awk">무기 각성 +${it.enh}: 최종 공격력·마력 +${Math.round(awakenBonus(it) * 100)}%</div>`;
   if (where === 'inv') {
     const cur = s.equip[it.slot];
     if (it.cls !== s.weaponType) h += `<div class="down">현재 직업(${CFG.classes[s.weaponType]})은 착용할 수 없어요</div>`;
@@ -317,7 +327,7 @@ function gearIcon(it, cls) { return `<img class="ico ${cls || ''}" src="${itemIc
 function slotCell(slot) {
   const s = UI.rt.save, it = s.equip[slot], on = UI.sel && UI.sel.t === 'eq' && UI.sel.k === slot;
   const inner = it
-    ? gearIcon(it) + (it.enh ? `<i class="enh">+${it.enh}</i>` : '')
+    ? gearIcon(it) + (it.enh ? `<i class="enh ${it.enh > CFG.enh.max ? 'hi' : ''}">+${it.enh}</i>` : '')
     : gearIcon({ slot, cls: s.weaponType, region: 1, grade: 0 }, 'ghost') + `<span class="ph">${CFG.slotNames[slot]}</span>`;
   return `<div class="cell eq ${it ? '' : 'empty'} ${on ? 'sel' : ''}" style="--gc:${it ? CFG.gradeColors[it.grade] : '#3a4258'}" data-act="sel:eq:${slot}" data-slot="${slot}" ${it ? `data-tip="eq:${slot}"` : ''}>${inner}</div>`;
 }
@@ -326,7 +336,7 @@ function invCell(it) {
   const s = UI.rt.save, on = UI.sel && UI.sel.t === 'inv' && String(UI.sel.k) === String(it.uid);
   const can = it.cls === s.weaponType;
   return `<div class="cell ${on ? 'sel' : ''} ${can ? '' : 'locked'}" style="--gc:${CFG.gradeColors[it.grade]}" data-uid="${it.uid}" data-act="sel:inv:${it.uid}" data-tip="inv:${it.uid}">` +
-    gearIcon(it) + (it.enh ? `<i class="enh">+${it.enh}</i>` : '') + '</div>';
+    gearIcon(it) + (it.enh ? `<i class="enh ${it.enh > CFG.enh.max ? 'hi' : ''}">+${it.enh}</i>` : '') + '</div>';
 }
 
 function selectedItem() {
@@ -353,7 +363,20 @@ function panelDetail() {
     btns = `<button class="buy" data-act="enh:${it.slot}" ${plan.n > 0 && !maxed ? '' : 'disabled'}>${label}</button>` +
       `<button class="chip" data-act="unequip:${it.slot}" ${s.inv.length < s.invCap ? '' : 'disabled'}>해제</button>`;
   }
-  return `<div class="detail">${gearIcon(it, 'big')}<div class="dinfo">${itemInfoHtml(it, where)}<div class="dbtns">${btns}</div></div></div>`;
+  // 무기 각성(+11~+15): 일반 강화를 +10까지 올린 무기에서만. 비싸고 확률로 성공하는 고위험 도전
+  let awk = '';
+  if (where === 'eq' && it.slot === 'weapon' && it.enh >= CFG.enh.max) {
+    const A = CFG.enh.awaken, n = it.enh + 1;
+    if (it.enh >= A.max) awk = '<div class="awaken"><b>최대 각성 (+15)</b></div>';
+    else {
+      const cost = awakenCost(n), p = Math.round(A.chance[n - CFG.enh.max - 1] * 100), gain = Math.round(A.bonus[n - CFG.enh.max - 1] * 100);
+      awk = `<div class="awaken"><b>무기 각성 +${it.enh} → +${n}</b>` +
+        `<small>성공 확률 ${p}% · 비용 ${fmt(cost)} G (실패해도 사라져요)<br>성공하면 최종 공격력·마력 +${gain}%` +
+        `${n >= A.dropFrom ? `<br><span class="down">실패하면 +${it.enh - 1}로 내려가요</span>` : ''}</small>` +
+        `<button class="danger" data-act="awaken" ${s.gold >= cost ? '' : 'disabled'}>도전 (${fmt(cost)} G)</button></div>`;
+    }
+  }
+  return `<div class="detail">${gearIcon(it, 'big')}<div class="dinfo">${itemInfoHtml(it, where)}<div class="dbtns">${btns}</div>${awk}</div></div>`;
 }
 
 function panelEquip() {
@@ -616,7 +639,7 @@ function updateInfo(rt) {
   const gear = CFG.slots.map((slot) => {
     const it = s.equip[slot];
     return `<div class="cell ${it ? '' : 'empty'}" style="--gc:${it ? CFG.gradeColors[it.grade] : '#3a4258'}" data-act="tab:equip" ${it ? `data-tip="eq:${slot}"` : ''}>` +
-      (it ? gearIcon(it) + (it.enh ? `<i class="enh">+${it.enh}</i>` : '') : gearIcon({ slot, cls: s.weaponType, region: 1, grade: 0 }, 'ghost')) + '</div>';
+      (it ? gearIcon(it) + (it.enh ? `<i class="enh ${it.enh > CFG.enh.max ? 'hi' : ''}">+${it.enh}</i>` : '') : gearIcon({ slot, cls: s.weaponType, region: 1, grade: 0 }, 'ghost')) + '</div>';
   }).join('');
   const ci = CFG.classInfo[s.weaponType], mainName = ci.stat === 'mag' ? '마력' : '공격력';
   const stats = `<span>직업<b>${ci.title}</b></span><span>${mainName}<b>${fmt(d.main)}</b></span>` +
@@ -710,6 +733,8 @@ function uiUpdateSkills() {
     btns[i].classList.toggle('glow', open && cd <= 0 && boss && rt.weak && i === ult);
   }
 }
+
+
 
 
 

@@ -146,6 +146,11 @@ r = await api('GET', '/api/me', null, tokenB);
 ok('거부된 저장은 반영되지 않음', r.data.save.gold === 1234);
 ok('새 저장 데이터에 레벨 1', r.data.save.level === 1 && r.data.save.exp === 0);
 
+r = await api('PUT', '/api/save', { save: bad((s) => { s.equip.weapon.enh = 16; }) }, tokenB);
+ok('무기 강화 16 이상은 거부', r.status === 422);
+r = await api('PUT', '/api/save', { save: bad((s) => { s.equip.hat = null; s.equip.weapon.enh = 12; }) }, tokenB);
+ok('무기 각성 +12는 저장 가능(범위 안)', r.status === 200, JSON.stringify(r.data));
+r = await api('PUT', '/api/save', { save: s1 }, tokenB);
 r = await api('PUT', '/api/save', { save: bad((s) => { s.weaponType = 'ranged'; }) }, tokenB);
 ok('착용 장비와 직업이 다르면 거부', r.status === 422);
 r = await api('PUT', '/api/save', { save: bad((s) => { s.weaponType = 'wizard'; }) }, tokenB);
@@ -302,6 +307,7 @@ ok('없는 주소는 404', r.status === 404);
 
 console.log(`\n${pass} 통과 / ${failed} 실패`);
 process.exit(failed ? 1 : 0);
+
 
 
 
