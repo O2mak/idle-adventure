@@ -229,7 +229,7 @@ function itemIconUrl(it) {
 // 장비를 입은 캐릭터 (기본 몸 + 옷 + 반지 + 모자)
 function characterSprite(save, expr) {
   const base = animalSprite(save.animal, expr), eq = save.equip;
-  const parts = ['armor', 'ring', 'hat'].filter((sl) => eq[sl]);
+  const parts = ['hat'].filter((sl) => eq[sl]);
   if (!parts.length) return base;
   const key = 'chr_' + save.animal + '_' + expr.eyes + '_' + (expr.mouth ? 1 : 0) + '_' + (expr.tail ? 1 : 0) + '_' + parts.map((sl) => sl + _gk(eq[sl])).join('|');
   return _get(key, () => {

@@ -98,10 +98,12 @@ class Renderer {
     const hop = happy ? Math.abs(Math.sin(t * 9)) * 6 : 0;
     const sw0 = spr.width / HK, sh0 = spr.height / HK, hr = (v) => Math.round(v * HK) / HK;  // 절반 칸 단위로 맞춤
     const x = hr(px - sw0 / 2 + swing * 4 - (hurt ? 2 : 0));
-    const y = hr(foot - sh0 + 1 + bob - hop);
+    // 숨쉬기: 전투 중 멈춰 서 있을 때 발을 기준으로 위아래가 살짝 늘었다 줄어듦
+    const br = engaged ? Math.sin(t * 2.6) * 0.03 : 0;
+    const sh1 = sh0 * (1 + br), y = hr(foot - sh1 + 1 + bob - hop);
     g.fillStyle = 'rgba(0,0,0,0.22)';
     g.fillRect(px - 10, foot - 1, 20, 3);
-    g.drawImage(spr, x, y, sw0, sh0);
+    g.drawImage(spr, x, y, sw0, sh1);
     // 무기
     const sw = weaponSprite(s.equip.weapon);
     if (sw) {
