@@ -1,0 +1,162 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>방치형 모험 (가제)</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="mode-full">
+
+  <!-- 처음 시작 화면 -->
+  <div id="startOverlay" class="overlay hidden">
+    <div class="card">
+      <h1>방치형 모험</h1>
+      <p class="sub">함께할 친구를 골라주세요</p>
+      <div class="animals">
+        <button class="animal sel" data-animal="dog"><canvas width="96" height="96" data-sprite="dog"></canvas><span>강아지</span></button>
+        <button class="animal" data-animal="cat"><canvas width="96" height="96" data-sprite="cat"></canvas><span>고양이</span></button>
+      </div>
+      <p class="sub">직업을 골라주세요</p>
+      <div id="clsPickStart" class="clsrow"></div>
+      <label class="nick">닉네임 <input id="startName" maxlength="12" value="모험가"></label>
+      <button id="startBtn" class="primary">모험 시작</button>
+      <p class="tiny">이 버전은 시험용이라 진행 상황이 이 브라우저에만 저장됩니다.</p>
+    </div>
+  </div>
+
+  <!-- 로그인 / 가입 -->
+  <div id="loginOverlay" class="overlay hidden">
+    <div class="card">
+      <h1>방치형 모험</h1>
+      <div class="toolbar center">
+        <button class="chip on" data-login-tab="login">로그인</button>
+        <button class="chip" data-login-tab="register">가입</button>
+      </div>
+      <label class="field">아이디 <input id="liId" maxlength="24" autocomplete="username"></label>
+      <label class="field">비밀번호 <input id="liPw" type="password" maxlength="100" autocomplete="current-password"></label>
+      <div id="regOnly" class="hidden">
+        <label class="field">닉네임 <input id="liNick" maxlength="12" autocomplete="nickname"></label>
+        <p class="sub">함께할 친구를 골라주세요</p>
+        <div class="animals small">
+          <button class="animal sel" data-reg-animal="dog"><canvas width="96" height="96" data-sprite="dog"></canvas><span>강아지</span></button>
+          <button class="animal" data-reg-animal="cat"><canvas width="96" height="96" data-sprite="cat"></canvas><span>고양이</span></button>
+        </div>
+        <p class="sub">직업을 골라주세요 <span class="tiny">(나중에 바꿀 수 있지만, 투자한 골드는 절반만 돌려받아요)</span></p>
+        <div id="clsPickReg" class="clsrow"></div>
+      </div>
+      <p id="liMsg" class="msg"></p>
+      <button id="liBtn" class="primary">로그인</button>
+      <p class="tiny">비밀번호는 찾을 수 없으니 꼭 기억해 주세요. (로그인 후 변경은 가능해요)</p>
+    </div>
+  </div>
+
+  <!-- 다른 탭/기기에서 실행 중일 때 -->
+  <div id="blocker" class="overlay hidden">
+    <div class="card">
+      <h2 id="blockerTitle">다른 탭에서 게임이 실행 중입니다</h2>
+      <p class="sub" id="blockerText">한 계정은 한 번에 한 곳에서만 플레이할 수 있어요.</p>
+      <button id="takeoverBtn" class="primary">여기서 플레이</button>
+    </div>
+  </div>
+
+  <!-- 보상형 광고 -->
+  <div id="adOverlay" class="overlay hidden">
+    <div class="card">
+      <h2>광고 보고 보너스 받기</h2>
+      <p class="sub" id="adLeft"></p>
+      <p class="tiny">광고를 끝까지 보면 고른 보너스를 받아요. (시험용 화면이라 실제 광고는 나오지 않아요)</p>
+      <div class="toolbar center" id="adKinds"></div>
+      <div class="toolbar center"><button class="chip" data-act="ad:close">닫기</button></div>
+    </div>
+  </div>
+  <div id="adPlayer" class="overlay hidden">
+    <div class="card">
+      <h2>광고 재생 중</h2>
+      <p class="sub">시험용 가짜 광고예요. <b id="adCount">5</b>초 뒤에 끝나요.</p>
+      <div class="adbar"><div id="adBar"></div></div>
+      <div class="toolbar center"><button class="chip" id="adSkip">건너뛰기 (보상 없음)</button></div>
+    </div>
+  </div>
+
+  <!-- 룰렛 -->
+  <div id="rouletteOverlay" class="overlay hidden">
+    <div class="card">
+      <h2>행운 룰렛</h2>
+      <p class="sub" id="rlTickets"></p>
+      <div id="rlWheel"></div>
+      <p id="rlResult" class="msg"></p>
+      <div class="toolbar center"><button class="primary" id="rlSpin" data-act="roulette:spin">돌리기</button><button class="chip" data-act="roulette:close">닫기</button></div>
+      <p class="tiny">티켓은 매일 첫 접속 때 1개를 받아요. (최대 3개까지 모아둘 수 있어요) 보너스 시간은 접속해 있는 동안만 흘러요.</p>
+    </div>
+  </div>
+
+  <div id="app">
+    <section id="gamePane">
+      <div id="topbar">
+        <span id="who"></span><span id="power" title="전투력 (초당 피해와 체력 등을 합친 값)"></span>
+        <span id="seasonInfo"></span>
+        <span class="spacer"></span>
+        <button class="chip" data-act="mode:full" title="전체 화면 모드">전체</button>
+        <button class="chip" data-act="mode:side" title="좁은 창 모드 (화면 왼쪽 1/5 정도에 두고 쓰기)">사이드</button>
+        <button class="chip" data-act="mode:mini" title="사냥 화면만 작게 보기">미니</button>
+        <button class="chip" data-act="pip" title="주소창 없는 작은 창으로 분리 (크롬/엣지)">분리</button>
+        <button class="chip" id="btnSound" data-act="sound" title="소리 켜기/끄기">소리</button>
+      </div>
+
+      <div id="stage">
+        <canvas id="view"></canvas>
+        <canvas id="fx"></canvas>
+        <div id="hudTL"><b id="stageLabel"></b><span id="killLabel"></span></div>
+        <div id="hudTR"><span id="goldLabel"></span></div>
+        <div id="hudBurn"></div>
+        <div id="hudBoss"><span id="bossTimer"></span><span id="weakAlert"></span></div>
+        <div id="hudLv"></div>
+        <div id="hudHp"><div id="hpFill"></div><span id="hpText"></span></div>
+        <div id="hudExp"><div id="hudExpFill"></div></div>
+        <div id="hudTime"></div>
+      </div>
+
+      <div id="controls">
+        <div id="skillbar"></div>
+        <div id="toggles">
+          <button class="chip" id="btnRoulette" data-act="roulette" title="룰렛">룰렛</button>
+          <button class="chip" id="btnAd" data-act="ad" title="광고 보고 보너스 받기">광고 보상</button>
+          <button class="chip" id="btnLock" data-act="lock" title="L">라운드 고정</button>
+          <button class="chip" id="btnManual" data-act="manual" title="M">보스 수동</button>
+        </div>
+      </div>
+      <div id="info">
+        <div id="infoGear"></div>
+        <div id="infoStats"></div>
+      </div>
+      <div id="log"></div>
+    </section>
+
+    <aside id="panel">
+      <nav id="tabs"></nav>
+      <div id="tabBody"></div>
+      <nav id="dock"></nav>
+    </aside>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/ads.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/chars.js"></script>
+  <script src="js/monsters.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/landmarks.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
+
+
+
+
+

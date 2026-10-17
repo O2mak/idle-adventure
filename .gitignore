@@ -1,0 +1,8 @@
+﻿server/node_modules/
+server/.wrangler/
+server/.dev.vars
+server/src/shared/game.generated.js
+*.log
+운영자키.txt
+.DS_Store
+Thumbs.db

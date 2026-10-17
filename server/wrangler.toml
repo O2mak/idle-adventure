@@ -1,0 +1,37 @@
+name = "idlegame"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# 게임 화면 파일(client 폴더)을 같은 주소에서 함께 서비스. /api/* 만 서버 코드가 처리
+[assets]
+directory = "../client"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "idlegame"
+# 로컬 개발에서는 아무 값이나 괜찮음. 실제 배포 때 `wrangler d1 create idlegame` 결과의 id로 교체
+database_id = "fecc1135-f836-4b4e-be38-e0321b071903"
+
+[vars]
+# 첫 정식 시즌 시작 시각(한국 시간). 이전에는 "시즌 0(테스트)"로 동작. 이후 매월 1일/15일 오전 6시에 새 시즌
+FIRST_SEASON_START = "2026-12-01T06:00:00+09:00"
+
+# ---- 개발 서버 (develop-idlegame): 라이브와 완전히 분리된 별도 서버/데이터베이스. `--env develop` 로만 올라감 ----
+[env.develop]
+name = "develop-idlegame"
+
+[env.develop.assets]
+directory = "../client"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[env.develop.d1_databases]]
+binding = "DB"
+database_name = "idlegame-dev"
+database_id = "420b10b6-5389-4def-a906-b6c245092838"
+
+[env.develop.vars]
+FIRST_SEASON_START = "2026-10-16T06:00:00+09:00"
+TEST_SEASON_HOURS = "6"

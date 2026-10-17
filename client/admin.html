@@ -1,0 +1,85 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>운영자 확인</title>
+<style>
+  body { font-family: 'Malgun Gothic', system-ui, sans-serif; background: #14161d; color: #e8ecf5; margin: 0; padding: 16px; }
+  h1 { font-size: 18px; } h2 { font-size: 15px; margin-top: 24px; }
+  input { background: #12151c; color: #e8ecf5; border: 1px solid #343b4d; border-radius: 6px; padding: 8px; width: 260px; }
+  button { background: #ffb53d; border: none; border-radius: 6px; padding: 8px 14px; font-weight: bold; cursor: pointer; }
+  .card { background: #1d212b; border: 1px solid #343b4d; border-radius: 8px; padding: 10px 12px; margin: 8px 0; white-space: pre-wrap; word-break: break-word; }
+  .meta { color: #9aa4b8; font-size: 12px; margin-bottom: 4px; }
+  .tag { display: inline-block; font-size: 11px; border-radius: 4px; padding: 0 6px; margin-right: 6px; background: #3a4258; }
+  .tag.bug { background: #7a2a2a; } .tag.idea { background: #2a5a3a; }
+  #msg { color: #ff8a8a; }
+  table { border-collapse: collapse; font-size: 13px; width: 100%; }
+  th, td { border: 1px solid #343b4d; padding: 5px 8px; text-align: left; white-space: nowrap; }
+  th { background: #262b38; cursor: pointer; position: sticky; top: 0; }
+  tr:nth-child(even) td { background: #1a1d26; }
+</style>
+</head>
+<body>
+<h1>운영자 확인 (의견 · 의심 기록)</h1>
+<p>운영자 키를 입력하세요. <input id="key" type="password" autocomplete="off"> <button id="go">불러오기</button> <span id="msg"></span></p>
+<div id="stats"></div>
+<h2>이용자 목록</h2><div id="users" style="overflow-x:auto"></div>
+<h2>받은 의견</h2><div id="fb"></div>
+<h2>의심스러운 저장 기록</h2><div id="flags"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (ms) => new Date(ms).toLocaleString('ko-KR');
+const CAT = { bug: '버그', idea: '건의', other: '기타' };
+try { $('key').value = sessionStorage.getItem('adminKey') || ''; } catch (e) {}
+const CLS = { melee: '전사', ranged: '궁수', mage: '마법사' }, ANI = { dog: '강아지', cat: '고양이' };
+const ago = (ms) => { if (!ms) return '-'; const m = Math.floor((Date.now() - ms) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.floor(m / 60) + '시간 전' : Math.floor(m / 1440) + '일 전'; };
+let USERS = [], sortKey = 'lastSeen', sortDir = -1;
+const COLS = [
+  ['nickname', '닉네임', (u) => u.nickname], ['loginId', '아이디', (u) => u.loginId], ['cls', '직업/동물', (u) => `${CLS[u.cls] || '-'}/${ANI[u.animal] || '-'}`],
+  ['level', '레벨', (u) => u.level ?? '-'], ['bestRegion', '최고 진행', (u) => u.bestRegion ? `${u.bestRegion}-${u.bestRound}` : '-'],
+  ['endlessBest', '무한 최고층', (u) => u.endlessBest || '-'], ['kills', '처치', (u) => u.kills ?? '-'],
+  ['playTime', '플레이 시간', (u) => u.playTime ? (u.playTime / 3600).toFixed(1) + '시간' : '-'], ['season', '시즌', (u) => u.season ?? '-'],
+  ['lastSeen', '마지막 접속', (u) => ago(u.lastSeen)], ['createdAt', '가입일', (u) => u.createdAt ? new Date(u.createdAt).toLocaleDateString('ko-KR') : '-'], ['flagCount', '의심 기록', (u) => u.flagCount || 0],
+];
+function drawUsers() {
+  const box = $('users'); box.textContent = '';
+  const rows = USERS.slice().sort((a, b) => { const x = a[sortKey] ?? -1, y = b[sortKey] ?? -1; return (x > y ? 1 : x < y ? -1 : 0) * sortDir; });
+  const t = document.createElement('table'), hr = t.createTHead().insertRow();
+  for (const [k, name] of COLS) { const th = document.createElement('th'); th.textContent = name + (sortKey === k ? (sortDir > 0 ? ' ▲' : ' ▼') : ''); th.onclick = () => { sortDir = sortKey === k ? -sortDir : -1; sortKey = k; drawUsers(); }; hr.appendChild(th); }
+  const tb = t.createTBody();
+  for (const u of rows) { const r = tb.insertRow(); for (const [, , f] of COLS) r.insertCell().textContent = f(u); }
+  box.appendChild(t);
+  if (!rows.length) box.textContent = '아직 가입한 사람이 없어요.';
+}function card(parent, meta, text, tag) {
+  const c = document.createElement('div'); c.className = 'card';
+  const m = document.createElement('div'); m.className = 'meta';
+  if (tag) { const t = document.createElement('span'); t.className = 'tag ' + tag.cls; t.textContent = tag.text; m.appendChild(t); }
+  m.appendChild(document.createTextNode(meta));
+  c.appendChild(m); c.appendChild(document.createTextNode(text)); parent.appendChild(c);
+}
+async function load() {
+  $('msg').textContent = '';
+  try {
+    const key = $('key').value;
+    const res = await fetch('/api/admin', { headers: { 'x-admin-key': key } });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.message || '불러오지 못했어요.');
+    try { sessionStorage.setItem('adminKey', key); } catch (e) {}
+    $('stats').textContent = `가입 ${d.stats.accounts}명 · 최근 24시간 접속 ${d.stats.active_day}명`;
+    USERS = d.users || []; drawUsers();
+    $('fb').textContent = ''; $('flags').textContent = '';
+    if (!d.feedback.length) $('fb').textContent = '아직 받은 의견이 없어요.';
+    for (const f of d.feedback) card($('fb'), `${f.nickname} · ${fmt(f.at)}${f.context ? ' · ' + f.context : ''}`, f.body, { cls: f.category, text: CAT[f.category] || f.category });
+    if (!d.flags.length) $('flags').textContent = '없음';
+    for (const f of d.flags) card($('flags'), `${f.nickname || '?'} · ${fmt(f.at)}`, f.reason);
+  } catch (e) { $('msg').textContent = e.message; }
+}
+$('go').onclick = load;
+$('key').addEventListener('keydown', (e) => { if (e.key === 'Enter') load(); });
+if ($('key').value) load();
+</script>
+</body>
+</html>
+

@@ -1,0 +1,1 @@
+﻿{"name":"idlegame-server","version":"0.1.0","private":true,"type":"module","scripts":{"sync":"node scripts/sync-shared.mjs","dev":"npm run sync && wrangler dev --port 8787","db:init":"wrangler d1 execute idlegame --local --file=schema.sql","test":"npm run sync && node test/api.test.mjs"},"devDependencies":{"wrangler":"^4.151.0"}}
