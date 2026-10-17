@@ -129,7 +129,16 @@ function autoLv(pts, L) {   // 꼭짓점 목록을 직선으로 이어 L(캐릭�
   return pts[pts.length - 1][1];
 }
 function skillLevelOf(s) { return autoLv(CFG.autoStat.skill, s.level); }
-function costOf(table, lv) { return Math.floor(table[0] * Math.pow(table[1], lv)); }
+// 가격은 100, 150, 200, 300, 500, 800, 1000 처럼 딱 떨어지는 값으로 맞춤 (1, 1.5, 2, 3, 4, 5, 6, 8 x 10의 거듭제곱 중 가장 가까운 값)
+const NICE_STEPS = [1, 1.5, 2, 3, 4, 5, 6, 8, 10];
+function niceNum(v) {
+  if (!(v >= 10)) return Math.max(1, Math.round(v));
+  const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p;
+  let best = NICE_STEPS[0], bd = Infinity;
+  for (const n of NICE_STEPS) { const d = Math.abs(Math.log(m / n)); if (d < bd) { bd = d; best = n; } }
+  return Math.round(best * p);
+}
+function costOf(table, lv) { return niceNum(table[0] * Math.pow(table[1], lv)); }
 function isBoss(round) { return round === CFG.roundsPerRegion; }
 
 function calcStats(s) {
@@ -256,7 +265,7 @@ function rollGrade(rt, region, boss) {
 }
 
 function salvageValue(it) {
-  return Math.max(1, Math.floor(monStats(it.region, 5).gold * CFG.salvageMul[it.grade]));
+  return niceNum(monStats(it.region, 5).gold * CFG.salvageMul[it.grade]);
 }
 
 function pickRandom(rt, arr) { return arr[Math.floor(rt.rng() * arr.length)]; }
@@ -394,7 +403,7 @@ function enhMul(it) { return 1 + Math.min(it.enh, CFG.enh.max) * CFG.enh.per; }
 function enhMax(it) { return it.slot === 'weapon' ? CFG.enh.awaken.max : CFG.enh.max; }
 function awakenBonus(it) { return it && it.slot === 'weapon' && it.enh > CFG.enh.max ? CFG.enh.awaken.bonus[it.enh - CFG.enh.max - 1] : 0; }
 // +10 -> +11 처럼 n(11~15)강으로 올리는 도전 1회 비용: 공격력 스탯 refLevel레벨 가격의 일정 배수
-function awakenCost(n) { const A = CFG.enh.awaken; return Math.floor(A.base * A.costMul[n - CFG.enh.max - 1]); }
+function awakenCost(n) { const A = CFG.enh.awaken; return niceNum(A.base * A.costMul[n - CFG.enh.max - 1]); }
 // 지금 도전의 성공 확률 (기본 확률 + 연속 실패 보너스)
 function awakenChance(w) { const A = CFG.enh.awaken; return Math.min(1, A.chance[w.enh + 1 - CFG.enh.max - 1] + Math.min(A.pityMax, (w.pity || 0) * A.pityStep)); }
 // 무기 각성 도전. 결과: { ok:false, reason } 또는 { ok:true, success, from, to, cost }
@@ -417,7 +426,7 @@ function tryAwaken(rt) {
 }
 
 function enhCostFn(it) {
-  return (lv) => Math.floor(costOf(CFG.enh.cost, lv) * Math.pow(CFG.itemScale, it.region - 1) * (1 + 0.5 * it.grade));
+  return (lv) => niceNum(costOf(CFG.enh.cost, lv) * Math.pow(CFG.itemScale, it.region - 1) * (1 + 0.5 * it.grade));
 }
 function buyEnh(s, slot, qty) {
   const it = s.equip[slot];
