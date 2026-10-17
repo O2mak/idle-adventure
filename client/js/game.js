@@ -168,6 +168,7 @@ function calcStats(s) {
   }
   hp *= 1 + gH; atk *= 1 + gA; mag *= 1 + gM; def *= 1 + gD;
   const ci = CFG.classInfo[s.weaponType];
+  const cm = autoLv(ci.curve, s.level); atk *= cm; mag *= cm; hp *= Math.sqrt(cm);   // 직업별 성장 곡선: 레벨에 따라 공격력/마력(체력은 제곱근) 배율이 달라짐
   const ab = 1 + awakenBonus(s.equip.weapon); atk *= ab; mag *= ab;   // 무기 각성: 최종 공격력/마력 배율
   hp *= ci.hp; // 직업별 체력 배율 (전사 튼튼, 궁수/마법사 약함)
   const ap = animalPassive(s); if (ap && ap.hpMul) hp *= ap.hpMul;   // 동물 패시브
