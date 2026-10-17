@@ -304,3 +304,11 @@ html.wide #tabBody { padding: 0; overflow: hidden; }
 .awaken small { display: block; color: var(--dim); margin-bottom: 6px; line-height: 1.5; }
 .tstat.awk { color: #ff9a6a; font-weight: bold; }
 .cell .enh.hi { color: #ff7a5a; }
+
+/* 추천 투자 */
+.badge.rec { background: #2a5a3a; color: #bff0c8; }
+.chip.rec { border-color: #4ee06a; color: #bff0c8; }
+
+/* 일일 임무 */
+.bar { height: 6px; background: #12151c; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.bar i { display: block; height: 100%; background: var(--accent); }

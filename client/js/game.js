@@ -56,6 +56,7 @@ function rollDay(s) {
   const k = dayKey();
   if (!s.today || s.today.date !== k) s.today = { date: k, sec: 0 };
   if (!s.ads || s.ads.date !== k) s.ads = { date: k, count: 0 };
+  if (!s.daily || s.daily.date !== k) s.daily = { date: k, kills: 0, boss: 0, merge: 0, claimed: [] };
   if (s.ticketDay !== k) { s.ticketDay = k; s.tickets = Math.min(CFG.roulette.cap, (s.tickets || 0) + 1); }   // 매일 첫 접속 룰렛 티켓
 }
 
@@ -71,6 +72,7 @@ function newSave(animal, name, cls) {
     perm: { atk: 0, hp: 0, mag: 0, gold: 0, drop: 0, exp: 0 }, titles: [],
     tickets: 1, ticketDay: dayKey(),   // 룰렛 티켓 (매일 첫 접속 +1)
     ads: { date: dayKey(), count: 0 }, // 오늘 본 보상형 광고 횟수
+    daily: { date: dayKey(), kills: 0, boss: 0, merge: 0, claimed: [] },   // 오늘의 임무 진행
     buff: { exp: { sec: 0, mul: 1 }, gold: { sec: 0, mul: 1 }, drop: { sec: 0, mul: 1 } },   // 룰렛 보너스 (남은 시간은 접속 중에만 줄어듦)
     endless: { best: 0, bestAt: 0 },   // 무한 모드 이번 시즌 최고 층과 도달 시각(ms)
     reward: null,                      // 지난 시즌 랭킹 보상 알림 (서버가 시즌 전환 때 넣고, 화면에서 보여준 뒤 지움)
@@ -91,7 +93,7 @@ function mergeSave(raw) {
   const needLockFix = !raw.lockFix;
   const out = Object.assign(base, raw);
   if (needLockFix) { out.lock = false; out.lockFix = 1; }   // 예전 버전이 쓰러질 때 자동으로 켠 '라운드 고정'을 한 번 풀어 줌
-  for (const k of ['stats', 'up', 'equip', 'best', 'perm', 'endless', 'buff', 'ads']) out[k] = Object.assign(base[k], raw[k] || {});
+  for (const k of ['stats', 'up', 'equip', 'best', 'perm', 'endless', 'buff', 'ads', 'daily']) out[k] = Object.assign(base[k], raw[k] || {});
   if (!Array.isArray(out.titles)) out.titles = [];
   // v1 저장 데이터 이전: 장비에 직업/강화/고유번호 부여
   if ((raw.v || 1) < 2) {
@@ -324,6 +326,7 @@ function mergeGroup(rt, slot, grade) {
   const item = makeItem(s, pickRandom(rt, CFG.merge.resultSlots), grade + 1, region, pickRandom(rt, CFG.enabledClasses));
   addItem(rt, item, true);
   msg(rt, `합성 성공! [${CFG.gradeNames[grade + 1]}] ${item.name}`, 'ok');
+  if (s.daily) s.daily.merge++;
   rt.happyAt = rt.clock;
   return true;
 }
@@ -415,7 +418,7 @@ function createRuntime(save, seed) {
     save, d: calcStats(save), hp: 0, enemies: [], kills: 0, spawned: 0, spawnT: 0,
     rng: makeRng(seed === undefined ? Math.floor(Math.random() * 4294967296) : seed),
     atkT: 0, cd: [0, 0, 0, 0], bossClock: 0, bossLeft: CFG.bossTime, weak: false,
-    clock: 0, scroll: 0, fx: [], proj: [], ev: [], msgs: [], hitAt: -1, castAt: -1, hurtAt: -1, happyAt: -10, cdMax: [1, 1, 1, 1],
+    gainLog: [], clock: 0, scroll: 0, fx: [], proj: [], ev: [], msgs: [], hitAt: -1, castAt: -1, hurtAt: -1, happyAt: -10, cdMax: [1, 1, 1, 1],
   };
   rt.hp = rt.d.hp;
   rt.burnEnded = !!(save.today && save.today.sec >= CFG.burn.sec);
@@ -579,13 +582,16 @@ function collectDead(rt) {
     rt.enemies.splice(rt.enemies.indexOf(e), 1);
     if (e.minion) { sfx(rt, 'kill'); continue; } // 보스가 부른 졸개: 보상도 처치 수도 없음
     rt.kills++;
-    if (rt.endless) { sfx(rt, 'kill'); continue; } // 무한 모드: 골드/경험치/드롭 없음
+    if (rt.endless) { sfx(rt, 'kill'); continue; }
+    if (s.daily) { s.daily.kills++; if (e.boss) s.daily.boss++; } // 무한 모드: 골드/경험치/드롭 없음
     const bm = burnMul(s), rb = (k) => (s.buff && s.buff[k] && s.buff[k].sec > 0 ? s.buff[k].mul : 1);
     const g = Math.floor(e.gold * (1 + CFG.goldUp.per * s.up.gold) * permMul(s, 'gold') * bm * rb('gold'));
     s.gold += g; s.kills = (s.kills || 0) + 1;
     fx(rt, e.x, '+' + fmt(g) + 'G', '#ffd35a');
     sfx(rt, 'kill');
-    gainExp(rt, e.exp * permMul(s, 'exp') * bm * rb('exp'));
+    const xp = e.exp * permMul(s, 'exp') * bm * rb('exp');
+    gainExp(rt, xp);
+    rt.gainLog.push([rt.clock, g, xp]);   // 분당 수익 표시용
     const chance = (e.boss ? CFG.drop.boss : CFG.drop.normal) * (1 + CFG.dropUp.per * s.up.drop) * permMul(s, 'drop') * bm * rb('drop');
     if (rt.rng() < chance) rollDrop(rt, e);
   }
@@ -746,6 +752,68 @@ function applyAdReward(rt, kind) {
   return true;
 }
 
+// ---------- 수익 표시 / 추천 투자 ----------
+// 최근 2분 동안의 분당 골드/경험치 (너무 짧으면 null)
+function gainRates(rt) {
+  const win = Math.min(120, rt.clock);
+  if (win < 10 || rt.endless) return null;
+  let g = 0, x = 0;
+  for (const [, gg, xx] of rt.gainLog) { g += gg; x += xx; }
+  return { gold: g / win * 60, exp: x / win * 60 };
+}
+
+// 지금 살 수 있는 투자 후보와 '가성비' 점수 (비용 x 가중치, 낮을수록 좋음). 체력/주력/방어 > 신속 > 스킬/사냥효율 > 장비 강화 순으로 가중
+function investOptions(s) {
+  const main = CFG.classInfo[s.weaponType].stat, opts = [];
+  for (const k of ['hp', main, 'def', 'spd']) {
+    const c = costOf(CFG.statCost[k], s.stats[k]);
+    opts.push({ key: 'stat:' + k, c, score: c * (k === 'spd' ? 0.6 : 1), buy: () => buyStat(s, k, 1) });
+  }
+  skillList(s).forEach((sk, i) => {
+    if (!skillOpen(s, i)) return;
+    const c = costOf(CFG.skillUp.cost, s.skillLv[i] || 0);
+    opts.push({ key: 'skill:' + i, c, score: c * 1.5, buy: () => buySkill(s, i, 1) });
+  });
+  for (const k of ['gold', 'drop']) {
+    const c = costOf(CFG[k + 'Up'].cost, s.up[k]);
+    opts.push({ key: 'up:' + k, c, score: c * 2, buy: () => buyUp(s, k, 1) });
+  }
+  for (const slot of CFG.slots) {
+    const it = s.equip[slot];
+    if (!it || it.enh >= CFG.enh.max) continue;
+    const c = enhCostFn(it)(it.enh);
+    opts.push({ key: 'enh:' + slot, c, score: c * 0.5, buy: () => buyEnh(s, slot, 1) });
+  }
+  return opts.sort((a, b) => a.score - b.score);
+}
+function bestInvest(s) { return investOptions(s)[0] || null; }
+// 가진 골드로 추천 순서대로 계속 구매. 산 횟수를 돌려줌
+function autoInvest(rt) {
+  const s = rt.save; let n = 0;
+  for (let guard = 0; guard < 300; guard++) {
+    const o = bestInvest(s);
+    if (!o || s.gold < o.c) break;
+    const before = s.gold; o.buy();
+    if (s.gold === before) break;
+    n++;
+  }
+  refresh(rt);
+  return n;
+}
+
+// ---------- 일일 임무 ----------
+function dailyReward(s, m) { return Math.floor(monStats(Math.min(CFG.regions.length, Math.max(1, s.best.region)), CFG.roundsPerRegion).gold * m.gold); }
+function dailyDone(s, m) { return (s.daily[m.id] || 0) >= m.need; }
+function dailyClaimable(s) { return CFG.daily.some((m) => dailyDone(s, m) && !s.daily.claimed.includes(m.id)); }
+function claimDaily(rt, id) {
+  const s = rt.save, m = CFG.daily.find((x) => x.id === id);
+  rollDay(s);
+  if (!m || !dailyDone(s, m) || s.daily.claimed.includes(id)) return 0;
+  const g = dailyReward(s, m); s.gold += g; s.daily.claimed.push(id);
+  msg(rt, `일일 임무 보상! +${fmt(g)}G (${m.label})`, 'ok'); sfx(rt, 'rare');
+  return g;
+}
+
 // ---------- 룰렛 ----------
 // 티켓 1개로 돌려서 보너스를 받음. 같은 종류 보너스가 이미 있으면 시간을 더하고 배율은 높은 쪽
 function spinRoulette(rt) {
@@ -774,6 +842,7 @@ function step(rt, dt) {
   if (rt.silenceLeft > 0) rt.silenceLeft = Math.max(0, rt.silenceLeft - dt);
   if (rt.poison) { rt.hp -= rt.poison.dps * dt; rt.poison.left -= dt; if (rt.poison.left <= 0) rt.poison = null; }
   for (let i = 0; i < rt.cd.length; i++) if (rt.cd[i] > 0) rt.cd[i] = Math.max(0, rt.cd[i] - dt);
+  while (rt.gainLog.length && rt.clock - rt.gainLog[0][0] > 120) rt.gainLog.shift();
   while (rt.fx.length && rt.clock - rt.fx[0].born > 0.9) rt.fx.shift();
   while (rt.proj.length && rt.clock - rt.proj[0].born > 1.2) rt.proj.shift();
 
@@ -842,6 +911,8 @@ function step(rt, dt) {
 }
 
 if (typeof module !== 'undefined') module.exports = { CFG };
+
+
 
 
 

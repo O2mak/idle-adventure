@@ -1,7 +1,7 @@
 ﻿// 화면 UI (HUD, 탭 패널, 입력 처리, PiP, 장비 칸/툴팁)
 const UI = { rt: null, tab: 'growth', qty: 1, lastHtml: '', lastLog: '', onChange: null, pipWin: null, sel: null, online: false, season: null };
 // [키, 이름, 아이콘, 위치] 위치: main=위쪽 큰 탭(캐릭터 키우기), dock=아래쪽 메뉴(모험/랭킹/영구/설정)
-const TABS = [['growth', '성장', 'growth', 'main'], ['equip', '장비', 'hat', 'main'], ['skills', '스킬', 'star', 'main'], ['stage', '스테이지', 'flag', 'dock'], ['endless', '무한', 'tower', 'dock'], ['perm', '영구', 'gem', 'dock'], ['set', '설정', 'gear', 'dock']];
+const TABS = [['growth', '성장', 'growth', 'main'], ['equip', '장비', 'hat', 'main'], ['skills', '스킬', 'star', 'main'], ['stage', '스테이지', 'flag', 'dock'], ['endless', '무한', 'tower', 'dock'], ['daily', '임무', 'clock', 'dock'], ['perm', '영구', 'gem', 'dock'], ['set', '설정', 'gear', 'dock']];
 const tabLabel = (t, dot) => mi(t[2]) + `<span>${t[1]}</span>` + (dot ? '<i class="dot"></i>' : '');
 // PiP 창으로 옮겨진 요소도 찾을 수 있게
 const $ = (id) => document.getElementById(id) || (UI.pipWin && !UI.pipWin.closed ? UI.pipWin.document.getElementById(id) : null);
@@ -182,6 +182,8 @@ function uiAct(act) {
     case 'sound': { const on = Sound.sfxOn || Sound.bgmOn; Sound.setOn(!on, !on); break; }
     case 'sfx': Sound.setOn(!Sound.sfxOn, Sound.bgmOn); break;
     case 'bgm': Sound.setOn(Sound.sfxOn, !Sound.bgmOn); break;
+    case 'claim': claimDaily(rt, b); break;
+    case 'autoinvest': { const n = autoInvest(rt); msg(rt, n ? `추천 투자로 ${n}번 올렸어요.` : '골드가 부족해요.', n ? 'ok' : ''); break; }
     case 'awaken': {
       const w = s.equip.weapon;
       if (!w || w.enh < CFG.enh.max || w.enh >= CFG.enh.awaken.max) break;
@@ -269,14 +271,16 @@ function buyRow(name, sub, lvText, act, costFn, lv, cap) {
   const maxed = cap !== undefined && lv >= cap;
   const shown = plan.n > 0 ? plan.total : costFn(lv);
   const label = maxed ? '최대' : `${fmt(shown)} G${plan.n > 1 ? ` (+${plan.n})` : ''}`;
-  return `<div class="row"><div class="rn">${name}<small>${sub}</small></div><div class="rl">${lvText}</div>` +
+  return `<div class="row"><div class="rn">${name}${act === UI.bestKey ? '<span class="badge rec">추천</span>' : ''}<small>${sub}</small></div><div class="rl">${lvText}</div>` +
     `<button class="buy" data-act="${act}" ${plan.n > 0 && !maxed ? '' : 'disabled'}>${label}</button></div>`;
 }
 
 function panelGrowth() {
   const rt = UI.rt, s = rt.save, d = rt.d, st = s.stats;
   const sc = (k) => (n) => costOf(CFG.statCost[k], n);
+  const bi = bestInvest(s); UI.bestKey = bi ? bi.key : '';
   let h = `<div class="head"><span class="gold">${mi('coin')}${fmt(s.gold)} G</span>${qtyBar()}</div>`;
+  h += `<div class="toolbar"><button class="chip rec" data-act="autoinvest" ${bi && s.gold >= bi.c ? '' : 'disabled'}>추천 투자 자동 실행</button><span class="note">가진 골드로 가성비 좋은 순서대로 한 번에 올려요 ("추천" 표시 순서)</span></div>`;
   const ci = CFG.classInfo[s.weaponType];
   h += `<div class="row"><div class="rn"><b>직업: ${ci.title}</b> <span class="badge">${CFG.classes[s.weaponType]}</span><small>${esc(ci.desc)}</small></div>` +
     CFG.enabledClasses.filter((c) => c !== s.weaponType).map((c) => `<button class="chip" data-act="swap:${c}">${CFG.classInfo[c].title}(으)로</button>`).join('') + '</div>';
@@ -499,6 +503,18 @@ function panelEndless() {
   return h;
 }
 
+function panelDaily() {
+  const s = UI.rt.save;
+  let h = '<div class="head"><span>오늘의 임무</span><span class="note">매일 오전 6시에 초기화돼요</span></div>';
+  for (const m of CFG.daily) {
+    const n = Math.min(m.need, s.daily[m.id] || 0), done = dailyDone(s, m), got = s.daily.claimed.includes(m.id);
+    h += `<div class="row"><div class="rn">${mi('clock')}${esc(m.label)} <b>${n}/${m.need}</b><small>보상 ${fmt(dailyReward(s, m))} G</small>` +
+      `<div class="bar"><i style="width:${n / m.need * 100}%"></i></div></div>` +
+      `<button class="buy" data-act="claim:${m.id}" ${done && !got ? '' : 'disabled'}>${got ? '받음' : done ? '받기' : '진행 중'}</button></div>`;
+  }
+  h += '<p class="note">보상 골드는 지금까지 도달한 가장 높은 지역의 보스 골드를 기준으로 계산돼요. 임무는 무한 모드에서는 진행되지 않아요.</p>';
+  return h;
+}
 const PERM_ICON = { atk: 'sword', hp: 'heart', mag: 'magic', gold: 'coin', drop: 'gift', exp: 'star' };
 function panelPerm() {
   const s = UI.rt.save, PI = CFG.perm.items;
@@ -628,6 +644,7 @@ function tabBadge(s, key) {
     for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g); g++) if (mergeCount(s, slot, g) >= CFG.merge.need) return true;
     return false;
   }
+  if (key === 'daily') return dailyClaimable(s);
   if (key === 'perm') return s.permPoints > 0 && Object.keys(CFG.perm.items).some((k) => { const c = permNextCost(s, k); return c !== null && s.permPoints >= c; });
   return false;
 }
@@ -641,10 +658,12 @@ function updateInfo(rt) {
     return `<div class="cell ${it ? '' : 'empty'}" style="--gc:${it ? CFG.gradeColors[it.grade] : '#3a4258'}" data-act="tab:equip" ${it ? `data-tip="eq:${slot}"` : ''}>` +
       (it ? gearIcon(it) + (it.enh ? `<i class="enh ${it.enh > CFG.enh.max ? 'hi' : ''}">+${it.enh}</i>` : '') : gearIcon({ slot, cls: s.weaponType, region: 1, grade: 0 }, 'ghost')) + '</div>';
   }).join('');
+  const rates = gainRates(rt);
   const ci = CFG.classInfo[s.weaponType], mainName = ci.stat === 'mag' ? '마력' : '공격력';
   const stats = `<span>직업<b>${ci.title}</b></span><span>${mainName}<b>${fmt(d.main)}</b></span>` +
     `<span>체력<b>${fmt(d.hp)}</b></span><span>방어력<b>${fmt(d.def)}</b></span>` +
-    `<span>초당 피해<b>${fmt(d.plain * d.spd)}</b></span><span>공격 속도<b>${d.spd.toFixed(2)}/초</b></span>`;
+    `<span>초당 피해<b>${fmt(d.plain * d.spd)}</b></span><span>공격 속도<b>${d.spd.toFixed(2)}/초</b></span>` +
+    (rates ? `<span>분당 골드<b>${fmt(rates.gold)}</b></span><span>분당 경험치<b>${fmt(rates.exp)}</b></span>` + (s.level < CFG.level.cap && rates.exp > 0 ? `<span class="sw">다음 레벨까지 약 ${fmtTime(Math.max(0, expNeed(s.level) - s.exp) / rates.exp * 60)}</span>` : '') : '');
   if (gear !== UI.lastGear) { UI.lastGear = gear; el.innerHTML = gear; }
   if (stats !== UI.lastStats) { UI.lastStats = stats; $('infoStats').innerHTML = stats; }
 }
@@ -708,7 +727,7 @@ function uiUpdate() {
   });
   const main3 = ['growth', 'equip', 'skills'].includes(UI.tab), wide = main3 && isWide();
   document.documentElement.classList.toggle('wide', wide);
-  const html = wide ? colsHtml() : ({ growth: panelGrowth, equip: panelEquip, skills: panelSkills, stage: panelStage, endless: panelEndless, perm: panelPerm, set: panelSettings })[UI.tab]();
+  const html = wide ? colsHtml() : ({ growth: panelGrowth, equip: panelEquip, skills: panelSkills, stage: panelStage, endless: panelEndless, perm: panelPerm, daily: panelDaily, set: panelSettings })[UI.tab]();
   const typing = document.activeElement && document.activeElement.id === 'fbText';   // 의견을 쓰는 중에는 화면을 다시 그리지 않음
   if (html !== UI.lastHtml && !typing) { UI.lastHtml = html; $('tabBody').innerHTML = html; }
 
@@ -733,6 +752,8 @@ function uiUpdateSkills() {
     btns[i].classList.toggle('glow', open && cd <= 0 && boss && rt.weak && i === ult);
   }
 }
+
+
 
 
 

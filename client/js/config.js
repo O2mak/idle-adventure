@@ -115,6 +115,13 @@ const CFG = {
   // 보상형 광고: 끝까지 보면 선택한 보너스(접속 중에만 흐르는 시간)를 받음. 하루 perDay번. provider는 'mock'(시험용 가짜 광고)이며 실제 광고 서비스가 정해지면 ads.js에서 바꿈
   ads: { enabled: true, perDay: 3, mul: 2, sec: 1800, provider: 'mock' },
 
+  // 일일 임무: 매일(오전 6시 기준) 초기화. 보상 골드 = 최고 진행 지역 보스 1마리 골드 x gold
+  daily: [
+    { id: 'kills', label: '몬스터 처치', need: 300, gold: 40 },
+    { id: 'boss', label: '보스 처치', need: 2, gold: 60 },
+    { id: 'merge', label: '장비 합성', need: 1, gold: 40 },
+  ],
+
   // 룰렛: 티켓으로 돌려서 일정 시간(접속 중에만 흐름) 경험치/골드/드롭률 보너스를 받음. 티켓은 매일 첫 접속 1개 (최대 3개까지 모아둘 수 있음)
   roulette: {
     cap: 3,
@@ -225,6 +232,7 @@ const CFG = {
       sky: ['#3cb8e8', '#c8f0ff'], hill: '#58a85a', hill2: '#3f8a48', ground: '#4aa850', groundDark: '#348a3a', tree: '#2a8a40', cloud: '#ffffff' },
   ],
 };
+
 
 
 

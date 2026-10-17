@@ -120,6 +120,21 @@ class Renderer {
       }
       g.restore();
     }
+    // 걸을 때 발밑 먼지, 마법사는 스태프 구슬 주변 반짝임
+    if (!engaged) {
+      for (let i = 0; i < 3; i++) {
+        const ph = (t * 2.4 + i / 3) % 1;
+        g.fillStyle = `rgba(255,255,255,${0.45 * (1 - ph)})`;
+        g.fillRect(hr(px - 8 - ph * 12), hr(foot - 2 - ph * 4), 2, 2);
+      }
+    }
+    if (s.weaponType === 'mage') {
+      for (let i = 0; i < 3; i++) {
+        const a = t * 2 + i * 2.1, k = (Math.sin(t * 5 + i * 1.7) + 1) / 2;
+        g.fillStyle = `rgba(255,248,170,${0.25 + 0.65 * k})`;
+        g.fillRect(hr(x + 36.5 + Math.cos(a) * 5), hr(y + 10.5 + Math.sin(a) * 5), 1, 1);
+      }
+    }
     this.bar(px - 12, y - 4, 24, rt.hp / rt.d.hp, '#4ee06a');
   }
 
@@ -229,5 +244,6 @@ class Renderer {
     g.globalAlpha = 1;
   }
 }
+
 
 
