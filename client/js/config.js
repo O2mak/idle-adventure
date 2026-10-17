@@ -42,7 +42,7 @@ const CFG = {
   spawnX: 190, stopNormal: 30, stopBoss: 46,
 
   // 플레이어 기본 능력치
-  player: { hp: 100, atk: 10, mag: 10, def: 0, spd: 1.0 },
+  player: { hp: 130, atk: 12, mag: 13, def: 0, spd: 1.0 },
   // 스탯 1레벨당 증가량
   statPer: { hp: 20, atk: 2, mag: 2, def: 1, spd: 0.03 },
   statGrowth: 1.07,      // 체력/공격력/마력/방어력: 투자 레벨마다 효과가 이 비율로 복리 증가 (필요 골드 증가율보다 약간 낮게)
