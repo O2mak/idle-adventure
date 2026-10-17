@@ -221,7 +221,6 @@ function uiAct(act) {
       const pv = swapPreview(s, b), ci = CFG.classInfo[b];
       if (!pv.ok) { alert(pv.reason); break; }
       const text = `${ci.title}(${ci.weapon})(으)로 바꿀까요?\n\n` +
-        `• 스탯/스킬에 투자한 ${fmt(pv.invested)}G 중 ${Math.round(CFG.swap.refund * 100)}%인 ${fmt(pv.refund)}G를 돌려받고, 투자는 0으로 초기화돼요.\n` +
         `• 지금 끼고 있는 장비 ${pv.mismatched}개는 보관함으로 이동해요. (직업이 달라서 착용할 수 없어요)\n` +
         `• 레벨(Lv.${s.level}), 골드 획득량/드롭률, 장비 강화는 그대로예요.\n` +
         `• ${ci.title}의 스킬은 레벨에 맞춰 다시 해금돼요.`;
@@ -276,7 +275,6 @@ function buyRow(name, sub, lvText, act, costFn, lv, cap) {
 
 function panelGrowth() {
   const rt = UI.rt, s = rt.save, d = rt.d, st = s.stats;
-  const sc = (k) => (n) => costOf(CFG.statCost[k], n);
   const bi = bestInvest(s); UI.bestKey = bi ? bi.key : '';
   let h = `<div class="head"><span class="gold">${mi('coin')}${fmt(s.gold)} G</span>${qtyBar()}</div>`;
   h += `<div class="toolbar"><button class="chip rec" data-act="autoinvest" ${bi && s.gold >= bi.c ? '' : 'disabled'}>추천 투자 자동 실행</button><span class="note">가진 골드로 가성비 좋은 순서대로 한 번에 올려요 ("추천" 표시 순서)</span></div>`;
@@ -286,12 +284,14 @@ function panelGrowth() {
   const need = expNeed(s.level);
   h += `<div class="row"><div class="rn"><b>캐릭터 Lv.${s.level}</b>${s.level >= CFG.level.cap ? ' (최대 레벨)' : ''}` +
     `<small>${s.level >= CFG.level.cap ? '' : `경험치 ${fmt(s.exp)} / ${fmt(need)} · `}레벨업마다 체력 +${CFG.level.hp}, 공격력 +${CFG.level.atk}, 마력 +${CFG.level.mag}</small></div></div>`;
-  h += buyRow(mi('heart') + '체력', `현재 ${fmt(d.hp)}`, `Lv.${st.hp}`, 'stat:hp', sc('hp'), st.hp);
+  const info = (name, sub) => `<div class="row"><div class="rn">${name}<small>${sub}</small></div></div>`;
   const star = (k) => (ci.stat === k ? ' ★ 현재 직업의 주력' : ' · 현재 직업은 쓰지 않아요');
-  h += buyRow(mi('sword') + '공격력', `현재 ${fmt(d.atk)} (전사/궁수가 사용)${star('atk')}`, `Lv.${st.atk}`, 'stat:atk', sc('atk'), st.atk);
-  h += buyRow(mi('magic') + '마력', `현재 ${fmt(d.mag)} (마법사가 사용)${star('mag')}`, `Lv.${st.mag}`, 'stat:mag', sc('mag'), st.mag);
-  h += buyRow(mi('shield') + '방어력', `현재 ${fmt(d.def)}`, `Lv.${st.def}`, 'stat:def', sc('def'), st.def);
-  h += buyRow(mi('bolt') + '신속', `공격 속도 초당 ${d.spd.toFixed(2)}회`, `Lv.${st.spd}`, 'stat:spd', sc('spd'), st.spd);
+  h += '<p class="note">능력치는 캐릭터 레벨이 오르면 자동으로 올라요. 골드는 장비 강화와 사냥 효율에 쓰세요.</p>';
+  h += info(mi('heart') + '체력', `현재 ${fmt(d.hp)}`);
+  h += info(mi('sword') + '공격력', `현재 ${fmt(d.atk)} (전사/궁수가 사용)${star('atk')}`);
+  h += info(mi('magic') + '마력', `현재 ${fmt(d.mag)} (마법사가 사용)${star('mag')}`);
+  h += info(mi('shield') + '방어력', `현재 ${fmt(d.def)}`);
+  h += info(mi('bolt') + '신속', `공격 속도 초당 ${d.spd.toFixed(2)}회`);
   const bl2 = burnLeft(s);
   h += `<p class="note">${bl2 > 0 ? `🔥 버닝 타임 진행 중! 남은 ${fmtTime(bl2)} 동안 경험치·골드·장비 드롭률이 ×${CFG.burn.mul}배예요.` : '오늘의 버닝 타임은 끝났어요. 내일 오전 6시에 다시 시작해요.'} (하루 접속 시간 중 처음 ${CFG.burn.sec / 3600}시간)</p>`;
   h += '<h3>사냥 효율</h3>';
@@ -417,9 +417,8 @@ function panelEquip() {
 
 function panelSkills() {
   const rt = UI.rt, s = rt.save;
-  let h = `<div class="head"><span class="gold">${mi('coin')}${fmt(s.gold)} G</span>${qtyBar()}</div>`;
+  let h = '<p class="note">스킬은 캐릭터 레벨이 오르면 자동으로 강해져요.</p>';
   skillList(s).forEach((sk, i) => {
-    const lv = s.skillLv[i];
     if (sk.special) { // 동물 특수 스킬: 강화 없음
       h += `<div class="row"${skillOpen(s, i) ? '' : ' style="opacity:.6"'}><div class="rn">${mi('star')}${esc(sk.name)} <span class="badge">${s.animal === 'dog' ? '강아지' : '고양이'} 특수</span>${skillOpen(s, i) ? '' : ` <span class="badge">캐릭터 Lv.${sk.unlock}에 해금</span>`}<small>${esc(sk.desc)}<br>쿨타임 ${sk.cd}초 · 강화 없음</small></div></div>`;
       return;
@@ -428,7 +427,7 @@ function panelSkills() {
       h += `<div class="row" style="opacity:.6"><div class="rn">${esc(sk.name)} <span class="badge">캐릭터 Lv.${sk.unlock}에 해금</span><small>${esc(sk.desc)}</small></div></div>`;
       return;
     }
-    h += buyRow(mi('star') + esc(sk.name), `${esc(sk.desc)}<br>쿨타임 ${sk.cd}초 · 피해 ${fmt(skillDamage(rt, i))}`, `Lv.${lv}`, 'skill:' + i, (n) => costOf(CFG.skillUp.cost, n), lv);
+    h += `<div class="row"><div class="rn">${mi('star')}${esc(sk.name)}<small>${esc(sk.desc)}<br>쿨타임 ${sk.cd}초 · 피해 ${fmt(skillDamage(rt, i))}</small></div><div class="rl">Lv.${Math.floor(skillLevelOf(s))}</div></div>`;
   });
   const ap0 = CFG.animalSkills[s.animal];
   if (ap0) h += `<h3>${s.animal === 'dog' ? '강아지' : '고양이'}의 특별한 능력</h3><div class="row"${s.level >= ap0.unlock ? '' : ' style="opacity:.6"'}><div class="rn">${mi('star')}${esc(ap0.name)} <span class="badge">패시브</span>${s.level >= ap0.unlock ? '' : `<span class="badge">캐릭터 Lv.${ap0.unlock}에 해금</span>`}<small>${esc(ap0.desc)}</small></div></div>`;

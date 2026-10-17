@@ -65,7 +65,7 @@ function newSave(animal, name, cls) {
   const sv = {
     v: 2, animal: animal || 'dog', name: name || '모험가',
     gold: 0, level: 1, exp: 0, kills: 0, playTime: 0, today: { date: dayKey(), sec: 0 },
-    lvUnit: CFG.lvUnit, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
+    lvUnit: CFG.lvUnit, autoStat: 1, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
     best: { region: 1, round: 1 },
     clearedRegions: [], permPoints: 0, pendingPoints: 0,   // permPoints=지금 쓸 수 있는 포인트, pendingPoints=이번 시즌에 모은 포인트(다음 시즌에 사용 가능)
     perm: { atk: 0, hp: 0, mag: 0, gold: 0, drop: 0, exp: 0 }, titles: [],
@@ -101,6 +101,11 @@ function mergeSave(raw) {
     out.skillLv = out.skillLv.map((v) => conv(v, L.skill));
     out.lvUnit = U;
   }
+  if (!raw.autoStat) {   // 능력치/스킬을 골드로 사던 시절의 저장 데이터: 투자한 골드를 전액 돌려주고 레벨 기반 자동 성장으로 전환
+    out.gold += investedGold(out);
+    out.stats = { hp: 0, atk: 0, mag: 0, def: 0, spd: 0 }; out.skillLv = [0, 0, 0, 0];
+    out.autoStat = 1;
+  }
   // v1 저장 데이터 이전: 장비에 직업/강화/고유번호 부여
   if ((raw.v || 1) < 2) {
     for (const slot of CFG.slots) {
@@ -118,17 +123,24 @@ function mergeSave(raw) {
 // 골드 투자 레벨 → 효과. 레벨마다 복리로 커져서(필요 골드도 복리로 커짐) 후반에도 골드가 의미를 가짐
 function lvVal(lv) { const g = CFG.statGrowth; return (Math.pow(g, lv) - 1) / (g - 1); }
 function lvLin(lv) { return lv * (1 + lv / CFG.statCurve); }  // 신속처럼 폭주하면 안 되는 능력치용
+function autoLv(pts, L) {   // 꼭짓점 목록을 직선으로 이어 L(캐릭터 레벨)에 해당하는 값을 구함
+  L = Math.max(pts[0][0], Math.min(pts[pts.length - 1][0], L || 1));
+  for (let i = 1; i < pts.length; i++) if (L <= pts[i][0]) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; return y0 + (y1 - y0) * (L - x0) / (x1 - x0); }
+  return pts[pts.length - 1][1];
+}
+function skillLevelOf(s) { return autoLv(CFG.autoStat.skill, s.level); }
 function costOf(table, lv) { return Math.floor(table[0] * Math.pow(table[1], lv)); }
 function isBoss(round) { return round === CFG.roundsPerRegion; }
 
 function calcStats(s) {
   const P = CFG.player, per = CFG.statPer, st = s.stats;
   const U = CFG.lvUnit;   // 성장 1레벨 = 옛 U레벨 효과
-  let hp = P.hp + lvVal(st.hp * U) * per.hp;
-  let atk = P.atk + lvVal(st.atk * U) * per.atk;
-  let mag = P.mag + lvVal(st.mag * U) * per.mag;
-  let def = P.def + lvVal(st.def * U) * per.def;
-  let spdB = lvLin(st.spd * U) * per.spd;
+  const gm = autoLv(CFG.autoStat.main, s.level) * U, gs = autoLv(CFG.autoStat.spd, s.level) * U;   // 능력치는 캐릭터 레벨로 자동 성장
+  let hp = P.hp + lvVal(gm) * per.hp;
+  let atk = P.atk + lvVal(gm) * per.atk;
+  let mag = P.mag + lvVal(gm) * per.mag;
+  let def = P.def + lvVal(gm) * per.def;
+  let spdB = lvLin(gs) * per.spd;
   const lv = (s.level || 1) - 1; // 캐릭터 레벨 보너스 (고정 수치)
   hp += lv * CFG.level.hp; atk += lv * CFG.level.atk; mag += lv * CFG.level.mag;
   const pm = s.perm || {}, PI = CFG.perm.items; // 영구 포인트 투자 (고정 수치)
@@ -382,7 +394,7 @@ function enhMul(it) { return 1 + Math.min(it.enh, CFG.enh.max) * CFG.enh.per; }
 function enhMax(it) { return it.slot === 'weapon' ? CFG.enh.awaken.max : CFG.enh.max; }
 function awakenBonus(it) { return it && it.slot === 'weapon' && it.enh > CFG.enh.max ? CFG.enh.awaken.bonus[it.enh - CFG.enh.max - 1] : 0; }
 // +10 -> +11 처럼 n(11~15)강으로 올리는 도전 1회 비용: 공격력 스탯 refLevel레벨 가격의 일정 배수
-function awakenCost(n) { const A = CFG.enh.awaken; return Math.floor(costOf(CFG.legacyCost.atk, A.refLevel) * A.costMul[n - CFG.enh.max - 1]); }
+function awakenCost(n) { const A = CFG.enh.awaken; return Math.floor(A.base * A.costMul[n - CFG.enh.max - 1]); }
 // 지금 도전의 성공 확률 (기본 확률 + 연속 실패 보너스)
 function awakenChance(w) { const A = CFG.enh.awaken; return Math.min(1, A.chance[w.enh + 1 - CFG.enh.max - 1] + Math.min(A.pityMax, (w.pity || 0) * A.pityStep)); }
 // 무기 각성 도전. 결과: { ok:false, reason } 또는 { ok:true, success, from, to, cost }
@@ -497,7 +509,7 @@ function nearest(rt, range) {
 
 function skillDamage(rt, i) {
   const sk = skillList(rt.save)[i];
-  return rt.d.main * CFG.classInfo[rt.save.weaponType].skill * sk.mult * (1 + CFG.skillUp.per * (rt.save.skillLv[i] || 0));
+  return rt.d.main * CFG.classInfo[rt.save.weaponType].skill * sk.mult * (1 + CFG.skillUp.per * skillLevelOf(rt.save));
 }
 
 // 날아가는 연출 기록 (화면에서만 사용, 피해는 즉시 적용)
@@ -526,7 +538,7 @@ function castSkill(rt, i) {
 // ---------- 직업(무기) 교체 ----------
 // 스탯/스킬에 투자한 골드 합계 (교체 시 일부 환급 대상)
 function investedGold(s) {
-  let total = 0;
+  let total = 0;   // 능력치/스킬은 이제 골드로 사지 않으므로 보통 0 (옛 저장의 잔여분만 계산)
   for (const k of Object.keys(CFG.statCost)) for (let lv = 0; lv < s.stats[k]; lv++) total += costOf(CFG.statCost[k], lv);
   for (const n of s.skillLv) for (let lv = 0; lv < n; lv++) total += costOf(CFG.skillUp.cost, lv);
   return total;
@@ -577,7 +589,7 @@ function switchClass(rt, cls) {
   rt.cd = [0, 0, 0, 0]; rt.enemies = []; rt.spawned = 0; rt.kills = 0;
   refresh(rt);
   rt.hp = rt.d.hp;
-  msg(rt, `${CFG.classInfo[cls].title}(으)로 바꿨어요! 투자 골드 ${fmt(pv.invested)}의 ${Math.round(CFG.swap.refund * 100)}%인 ${fmt(pv.refund)}G를 돌려받았어요.`, 'ok');
+  msg(rt, `${CFG.classInfo[cls].title}(으)로 바꿨어요!`, 'ok');
   return { ok: true, refund: pv.refund };
 }
 
@@ -770,15 +782,6 @@ function gainRates(rt) {
 // 지금 살 수 있는 투자 후보와 '가성비' 점수 (비용 x 가중치, 낮을수록 좋음). 체력/주력/방어 > 신속 > 스킬/사냥효율 > 장비 강화 순으로 가중
 function investOptions(s) {
   const main = CFG.classInfo[s.weaponType].stat, opts = [];
-  for (const k of ['hp', main, 'def', 'spd']) {
-    const c = costOf(CFG.statCost[k], s.stats[k]);
-    opts.push({ key: 'stat:' + k, c, score: c * (k === 'spd' ? 0.6 : 1), buy: () => buyStat(s, k, 1) });
-  }
-  skillList(s).forEach((sk, i) => {
-    if (!skillOpen(s, i)) return;
-    const c = costOf(CFG.skillUp.cost, s.skillLv[i] || 0);
-    opts.push({ key: 'skill:' + i, c, score: c * 1.5, buy: () => buySkill(s, i, 1) });
-  });
   for (const k of ['gold', 'drop']) {
     const c = costOf(CFG[k + 'Up'].cost, s.up[k]);
     opts.push({ key: 'up:' + k, c, score: c * 2, buy: () => buyUp(s, k, 1) });
