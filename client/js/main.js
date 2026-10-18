@@ -1,4 +1,4 @@
-﻿// 시작/로그인/저장/메인 루프/중복 접속 방지
+// 시작/로그인/저장/메인 루프/중복 접속 방지
 (function () {
   const params = new URLSearchParams(location.search);
   // 개발 서버(주소가 develop- 로 시작)에서는 화면에 표시를 해서 라이브와 헷갈리지 않게 함
@@ -285,6 +285,7 @@
     if (save && params.get('stage')) {
       const [r, rd] = params.get('stage').split('-').map(Number);
       save.region = r; save.round = rd; save.best = { region: r, round: rd }; save.lock = true;
+      if (params.get('hard')) { save.clearedRegions = CFG.regions.map((_, i) => i + 1); save.best = { region: CFG.regions.length, round: CFG.roundsPerRegion }; save.hard = true; save.hardBest = { region: r, round: rd }; }
     }
     if (save && params.get('items')) {
       const n = Number(params.get('items')), tmp = createRuntime(save, 7), cl = (params.get('cls') || 'melee').split(',');

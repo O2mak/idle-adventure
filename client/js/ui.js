@@ -162,7 +162,7 @@ async function openPip() {
 
 function uiAct(act) {
   const rt = UI.rt, s = rt.save;
-  const [a, b, c] = act.split(':');
+  const [a, b, c, c2] = act.split(':');
   switch (a) {
     case 'tab': UI.tab = b; break;
     case 'qty': UI.qty = b === 'max' ? 'max' : Number(b); try { localStorage.setItem('idlegame_qty', String(UI.qty)); } catch (e) {} break;
@@ -206,8 +206,13 @@ function uiAct(act) {
       UI.chap = b === 'prev' ? Math.max(1, (UI.chap || s.region) - 1) : b === 'next' ? Math.min(N, (UI.chap || s.region) + 1) : Number(b);
       break;
     }
+    case 'diff': {   // 보통 / 어려움 보기 전환
+      UI.hardView = b === 'hard' && hardOpen(s);
+      UI.chap = s.hard === UI.hardView ? s.region : 1;
+      break;
+    }
     case 'go':
-      if (canEnter(s, Number(b), Number(c))) { if (rt.endless) exitEndless(rt); setStage(rt, Number(b), Number(c), true); }
+      if (canEnter(s, Number(b), Number(c), c2 === '1')) { if (rt.endless) exitEndless(rt); setStage(rt, Number(b), Number(c), true, c2 === '1'); }
       break;
     case 'endless':
       if (b === 'start') startEndless(rt);
@@ -457,21 +462,25 @@ function monUrl(r) { return _monUrl[r] || (_monUrl[r] = monsterSprite(r, false).
 // 스테이지: 챕터(지역)를 하나씩 골라서 보는 방식
 function panelStage() {
   const s = UI.rt.save, RN = CFG.regions.length;
+  if (UI.hardView === undefined) UI.hardView = s.hard;
+  const hv = !!UI.hardView && hardOpen(s);
   if (!UI.chap) UI.chap = s.region;
-  const r = UI.chap, rg = CFG.regions[r - 1], open = canEnter(s, r, 1);
+  const r = UI.chap, rg = CFG.regions[r - 1], open = canEnter(s, r, 1, hv), hs = hv ? 1 : 0, here = (n) => s.hard === hv && s.region === n && !UI.rt.endless;
   let h = `<div class="head"><span>${mi('gem')}이번 시즌 모은 영구 포인트 <b>${s.pendingPoints}</b></span></div>`;
+  h += `<div class="toolbar"><button class="chip ${hv ? '' : 'on'}" data-act="diff:normal">보통</button><button class="chip ${hv ? 'on' : ''}" data-act="diff:hard" ${hardOpen(s) ? '' : 'disabled'}>어려움${hardOpen(s) ? '' : ` (보통 ${RN}지역 클리어 후)`}</button></div>`;
+  if (hv) h += `<p class="note">어려움은 몬스터가 훨씬 강한 대신 골드를 많이 줘요. 장비는 보통과 같은 규칙으로 나오니, 전설 장비는 보통 ${CFG.gradeUnlock[4]}지역 이상에서 노려야 해요. 어려움 지역은 앞 지역을 클리어하면 열려요.</p>`;
   h += '<div class="chapbar"><button class="chip" data-act="chap:prev">◀</button>' +
     CFG.regions.map((_, i) => {
-      const n = i + 1, ok = canEnter(s, n, 1);
-      return `<button class="chap ${n === r ? 'on' : ''} ${ok ? '' : 'locked'} ${s.region === n && !UI.rt.endless ? 'here' : ''} ${s.clearedRegions.includes(n) ? 'done' : ''}" data-act="chap:${n}">${n}</button>`;
+      const n = i + 1, ok = canEnter(s, n, 1, hv);
+      return `<button class="chap ${n === r ? 'on' : ''} ${ok ? '' : 'locked'} ${here(n) ? 'here' : ''} ${!hv && s.clearedRegions.includes(n) ? 'done' : ''}" data-act="chap:${n}">${n}</button>`;
     }).join('') + '<button class="chip" data-act="chap:next">▶</button></div>';
-  const state = !open ? '잠김' : s.clearedRegions.includes(r) ? '클리어' : '진행 중';
-  h += `<div class="chapcard"><img class="monimg" src="${monUrl(r)}" alt=""><div class="chaptxt"><b>${r}장 · ${esc(rg.name)}</b><small>${state}${s.region === r && !UI.rt.endless ? ' · 지금 여기서 사냥 중' : ''}</small></div></div>`;
+  const hb = s.hardBest, state = !open ? '잠김' : hv ? ((hb.region > r) ? '클리어' : '진행 중') : s.clearedRegions.includes(r) ? '클리어' : '진행 중';
+  h += `<div class="chapcard"><img class="monimg" src="${monUrl(r)}" alt=""><div class="chaptxt"><b>${hv ? '어려움 ' : ''}${r}장 · ${esc(rg.name)}</b><small>${state}${here(r) ? ' · 지금 여기서 사냥 중' : ''}</small></div></div>`;
   h += `<p class="note">전투 화면 오른쪽 아래의 자물쇠 버튼으로 같은 라운드를 계속 반복할 수 있어요. (지금: ${s.lock ? '반복 중' : '다음 라운드로 진행'})</p>`;
   h += '<div class="stagegrid">';
   for (let rd = 1; rd <= CFG.roundsPerRegion; rd++) {
-    const cur = s.region === r && s.round === rd && !UI.rt.endless, ok = canEnter(s, r, rd), boss = rd === CFG.roundsPerRegion;
-    h += `<button class="stagebtn ${cur ? 'cur' : ''} ${boss ? 'bossr' : ''}" data-act="go:${r}:${rd}" ${ok ? '' : 'disabled'}>${boss ? mi('crown') + '보스' : `${r}-${rd}`}</button>`;
+    const cur = here(r) && s.round === rd, ok = canEnter(s, r, rd, hv), boss = rd === CFG.roundsPerRegion;
+    h += `<button class="stagebtn ${cur ? 'cur' : ''} ${boss ? 'bossr' : ''}" data-act="go:${r}:${rd}:${hs}" ${ok ? '' : 'disabled'}>${boss ? mi('crown') + '보스' : `${r}-${rd}`}</button>`;
   }
   h += '</div><p class="note">잠긴 라운드는 앞 라운드를 먼저 클리어하면 열려요. 열린 라운드를 누르면 그 라운드에 고정되어 파밍해요. 다음 지역은 몬스터가 훨씬 강하니, 막히면 이전 지역에서 골드를 모아 강화하세요. 이전 지역은 골드가 더 많이, 새 지역은 좋은 장비가 더 잘 나옵니다.</p>';
   return h;
@@ -551,7 +560,7 @@ function feedbackPanel() {
 async function sendFeedbackUi() {
   const s = UI.rt.save, el = $('fbText'), body = (el ? el.value : UI.fbDraft).trim();
   if (body.length < 2) { UI.fbMsg = '내용을 입력해 주세요.'; if (el) el.blur(); UI.lastHtml = ''; uiUpdate(); return; }
-  const ctx = `Lv.${s.level} ${s.region}-${s.round} ${s.animal}/${s.weaponType}`;
+  const ctx = `Lv.${s.level} ${stageName(s)} ${s.animal}/${s.weaponType}`;
   try { await API.feedback(UI.fbCat, body, ctx); UI.fbDraft = ''; UI.fbMsg = '보냈어요. 고마워요!'; }
   catch (e) { UI.fbMsg = e.message || '보내지 못했어요.'; }
   const box = $('fbText'); if (box) box.blur();   // 입력 칸에서 빠져나와야 화면이 다시 그려짐
@@ -714,7 +723,7 @@ function uiUpdate() {
     const d = Math.floor(left / 86400e3), h = Math.floor(left % 86400e3 / 3600e3);
     $('seasonInfo').textContent = left > 0 ? `${UI.season.name} · ${d > 0 ? d + '일 ' : ''}${h}시간 남음` : UI.season.name;
   } else $('seasonInfo').textContent = '';
-  $('stageLabel').textContent = (rt.endless ? `무한 ${rt.endless.floor}층 · ${rg.name}` : `${s.region}-${s.round} ${rg.name}`) + (boss ? ` · ${bossName}` : '');
+  $('stageLabel').textContent = (rt.endless ? `무한 ${rt.endless.floor}층 · ${rg.name}` : `${s.hard ? '어려움 ' : ''}${s.region}-${s.round} ${rg.name}`) + (boss ? ` · ${bossName}` : '');
   // 스테이지 진행: 라운드 칸(마지막은 보스) + 이번 라운드 처치 막대
   const need = needKillsRt(rt), killPct = boss ? 100 : Math.min(100, rt.kills / need * 100);
   const pips = rt.endless ? '' : Array.from({ length: CFG.roundsPerRegion }, (_, i) => `<i class="pip${i + 1 === CFG.roundsPerRegion ? ' boss' : ''}${i + 1 < s.round ? ' done' : i + 1 === s.round ? ' cur' : ''}"></i>`).join('');

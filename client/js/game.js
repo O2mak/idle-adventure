@@ -67,6 +67,7 @@ function newSave(animal, name, cls) {
     gold: 0, level: 1, exp: 0, kills: 0, playTime: 0, today: { date: dayKey(), sec: 0 },
     lvUnit: CFG.lvUnit, autoStat: 1, gearPct: 1, nameV: 2, animalLocked: true, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
     best: { region: 1, round: 1 },
+    hard: false, hardBest: { region: 1, round: 1 },   // 어려움: 지금 어려움에서 사냥 중인지, 어려움 최고 기록 (보통 10지역을 클리어하면 열림)
     clearedRegions: [], permPoints: 0, pendingPoints: 0,   // permPoints=지금 쓸 수 있는 포인트, pendingPoints=이번 시즌에 모은 포인트(다음 시즌에 사용 가능)
     perm: { atk: 0, hp: 0, mag: 0, gold: 0, drop: 0, exp: 0 }, titles: [],
     tickets: 1, ticketDay: dayKey(),   // 룰렛 티켓 (매일 첫 접속 +1)
@@ -91,7 +92,7 @@ function mergeSave(raw) {
   const needLockFix = !raw.lockFix;
   const out = Object.assign(base, raw);
   if (needLockFix) { out.lock = false; out.lockFix = 1; }   // 예전 버전이 쓰러질 때 자동으로 켠 '라운드 고정'을 한 번 풀어 줌
-  for (const k of ['stats', 'up', 'equip', 'best', 'perm', 'endless', 'buff', 'ads']) out[k] = Object.assign(base[k], raw[k] || {});
+  for (const k of ['stats', 'up', 'equip', 'best', 'hardBest', 'perm', 'endless', 'buff', 'ads']) out[k] = Object.assign(base[k], raw[k] || {});
   if (!Array.isArray(out.titles)) out.titles = [];
   if (!raw.gearPct) {   // 장비 성능이 지역별 고정 수치였던 옛 저장: 등급 기준 비율 방식으로 다시 계산
     for (const it of out.inv.concat(CFG.slots.map((sl) => out.equip[sl]).filter(Boolean))) it.opts = makeItem({ nextUid: 0 }, it.slot, it.grade, it.region, it.cls).opts;
@@ -182,7 +183,11 @@ function calcStats(s) {
   return { hp, atk, mag, def, spd, main, plain: main * ci.plain };
 }
 
-function monStats(region, round) {
+function monStats(region, round, hard) {
+  if (hard) {   // 어려움: 10지역 몬스터를 기준으로 더 강하게, 골드는 더 많이
+    const H = CFG.hard, b = monStats(CFG.regions.length, round), k = region - 1;
+    return { boss: b.boss, hp: b.hp * H.hp * Math.pow(H.hpStep, k), atk: b.atk * H.atk * Math.pow(H.atkStep, k), gold: b.gold * H.gold * Math.pow(H.goldStep, k), exp: b.exp * H.exp };
+  }
   const M = CFG.mon, T = CFG.tune, boss = isBoss(round), rg = region - 1, rd = round - 1;
   const t = (k) => (T && T[k] && T[k][rg]) || 1;
   return {
@@ -510,7 +515,7 @@ function playerRange(s) { return CFG.classInfo[s.weaponType].range; }
 function needKills(s) { return isBoss(s.round) ? 1 : CFG.monstersPerRound; }
 
 function spawn(rt) {
-  const s = rt.save, m = rt.endless ? endlessMon(rt.endless.floor) : monStats(s.region, s.round);
+  const s = rt.save, m = rt.endless ? endlessMon(rt.endless.floor) : monStats(s.region, s.round, s.hard);
   if (rt.slack) m.hp *= rt.slack;
   rt.enemies.push({
     x: CFG.spawnX, hp: m.hp, maxhp: m.hp, atk: m.atk, gold: m.gold, exp: m.exp, boss: m.boss,
@@ -613,7 +618,8 @@ function investedAll(s) {
 // 지금까지 처치 수로 벌 수 있었던 골드의 넉넉한 상한 (버닝 x3, 영구/칭호 배율, 분해 수입 감안)
 function goldCeiling(s) {
   const r = Math.min(CFG.regions.length, Math.max(1, s.best.region));
-  return (s.kills || 0) * monStats(r, CFG.roundsPerRegion).gold * 4 + 1000;
+  const hb = s.hardBest && s.hardBest.region > 1 || (s.hardBest && s.hardBest.round > 1) ? monStats(Math.min(CFG.regions.length, s.hardBest.region), CFG.roundsPerRegion, true).gold : 0;
+  return (s.kills || 0) * Math.max(monStats(r, CFG.roundsPerRegion).gold, hb) * 4 + 1000;
 }
 
 // 교체 미리보기: 환급액, 보관함으로 돌아갈 장비 수, 불가 사유
@@ -689,16 +695,22 @@ function rollDrop(rt, e) {
   addItem(rt, item, false);
 }
 
-function setStage(rt, region, round, lock) {
+function hardOpen(s) { return s.clearedRegions.includes(CFG.regions.length); }
+function stageName(s) { return (s.hard ? '어려움 ' : '') + s.region + '-' + s.round; }
+function setStage(rt, region, round, lock, hard) {
   const s = rt.save;
+  s.hard = !!hard;
   s.region = region; s.round = round; s.lock = !!lock;
-  if (region > s.best.region || (region === s.best.region && round > s.best.round)) s.best = { region, round };
+  const bk = s.hard ? 'hardBest' : 'best', b = s[bk];
+  if (region > b.region || (region === b.region && round > b.round)) s[bk] = { region, round };
   resetRound(rt);
 }
 
-function canEnter(s, region, round) {
+function canEnter(s, region, round, hard) {
   if (region < 1 || region > CFG.regions.length) return false;
-  return region < s.best.region || (region === s.best.region && round <= s.best.round);
+  if (hard && !hardOpen(s)) return false;
+  const b = hard ? s.hardBest : s.best;
+  return region < b.region || (region === b.region && round <= b.round);
 }
 
 function failRound(rt, why) {
@@ -717,7 +729,7 @@ function failRound(rt, why) {
   rt.cd = [0, 0, 0, 0];
   resetRound(rt);
   sfx(rt, 'fail');
-  msg(rt, `${why} ${s.region}-${s.round}을(를) 다시 도전해요.${rt.fails % 3 === 0 ? ' 너무 어려우면 성장 탭에서 능력치를 올리거나, 스테이지 탭에서 이전 라운드를 골라 고정(파밍)해 보세요.' : ''}`, 'bad');
+  msg(rt, `${why} ${stageName(s)}을(를) 다시 도전해요.${rt.fails % 3 === 0 ? ' 너무 어려우면 성장 탭에서 능력치를 올리거나, 스테이지 탭에서 이전 라운드를 골라 고정(파밍)해 보세요.' : ''}`, 'bad');
 }
 function clearRound(rt) {
   const s = rt.save; rt.fails = 0;
@@ -732,10 +744,15 @@ function clearRound(rt) {
     resetRound(rt);
     return;
   }
-  msg(rt, `${s.region}-${s.round} 클리어!`, 'ok'); sfx(rt, isBoss(s.round) ? 'win' : 'clear');
+  msg(rt, `${stageName(s)} 클리어!`, 'ok'); sfx(rt, isBoss(s.round) ? 'win' : 'clear');
   if (isBoss(s.round)) rt.happyAt = rt.clock;
   if (s.lock) { resetRound(rt); return; }
-  if (s.round < CFG.roundsPerRegion) { setStage(rt, s.region, s.round + 1, false); return; }
+  if (s.round < CFG.roundsPerRegion) { setStage(rt, s.region, s.round + 1, false, s.hard); return; }
+  if (s.hard) {   // 어려움: 영구 포인트 없이 다음 어려움 지역으로
+    if (s.region < CFG.regions.length) { msg(rt, '어려움 ' + s.region + '지역 클리어!', 'ok'); setStage(rt, s.region + 1, 1, false, true); }
+    else { msg(rt, '어려움 마지막 지역입니다. 보스를 반복합니다.', 'ok'); resetRound(rt); }
+    return;
+  }
   if (!s.clearedRegions.includes(s.region)) {
     s.clearedRegions.push(s.region); s.pendingPoints++;
     msg(rt, '지역 클리어! 영구 포인트 +1 (다음 시즌부터 투자할 수 있어요)', 'ok');

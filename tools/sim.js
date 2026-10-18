@@ -1,4 +1,4 @@
-﻿// 장기 시뮬레이션: 하루 H시간씩 D일 동안 효율적으로 플레이하는 봇. 지역별 클리어 시각/레벨/처치 수 출력
+// 장기 시뮬레이션: 하루 H시간씩 D일 동안 효율적으로 플레이하는 봇. 지역별 클리어 시각/레벨/처치 수 출력
 // 사용: node sim2.js <하루 시간> <일수> <직업> <시드> [출력주기(시간)]
 const fs = require('fs'), vm = require('vm');
 const path = require('path');
@@ -37,6 +37,7 @@ function invest() {
 
 const FARM_MIN = Number(process.env.FARM_MIN || 15);  // 막힐 때 이전 라운드에서 파밍하는 시간(분)
 const cleared = {};      // 지역 → {h, lv, kills}
+let hardAt = 0, hardGold0 = 0, hardSeen = 0; const hardLog = [];
 let prevKills = 0, hoursOnline = 0, tick = 0, lastPrint = 0;
 const t0 = Date.now();
 for (let d = 1; d <= days; d++) {
@@ -46,11 +47,13 @@ for (let d = 1; d <= days; d++) {
     G.step(rt, dt); tick++;
     if (tick % 20 === 0) invest();
     if (s.lock && tick >= (rt.unlockAt || 0)) s.lock = false;
-    if (rt.fails >= 3 && !s.lock) { rt.fails = 0; let rg = s.region, rd = s.round; if (rd > 1) rd--; else if (rg > 1) { rg--; rd = G.CFG.roundsPerRegion - 1; } if (rg !== s.region || rd !== s.round) { G.setStage(rt, rg, rd, true); rt.unlockAt = tick + FARM_MIN * 60 * 20; } }   // 사람처럼: 계속 막히면 직접 이전 라운드를 골라 고정
+    if (rt.fails >= 3 && !s.lock) { rt.fails = 0; let rg = s.region, rd = s.round; if (rd > 1) rd--; else if (rg > 1) { rg--; rd = G.CFG.roundsPerRegion - 1; } if (rg !== s.region || rd !== s.round) { G.setStage(rt, rg, rd, true, s.hard); rt.unlockAt = tick + FARM_MIN * 60 * 20; } }   // 사람처럼: 계속 막히면 직접 이전 라운드를 골라 고정
     for (const r of s.clearedRegions) if (!cleared[r]) { cleared[r] = { h: (hoursOnline + i * dt / 3600), lv: s.level, kills: s.kills - prevKills, day: d, st: JSON.stringify(s.stats) + ' sk' + s.skillLv.join(',') + ' up' + s.up.gold + '/' + s.up.drop + ' G' + G.fmt(s.gold) }; prevKills = s.kills; }
+    if (process.env.HARD && !s.hard && s.clearedRegions.includes(G.CFG.regions.length)) { G.setStage(rt, 1, 1, false, true); hardAt = hoursOnline + i * dt / 3600; hardGold0 = s.gold + spentTotal; }
+    if (s.hard && s.hardBest.region > hardSeen) { hardSeen = s.hardBest.region; hardLog.push(`어려움 ${hardSeen}지역 도달 ${(hoursOnline + i * dt / 3600).toFixed(1)}시간째 (어려움 시작 후 ${(hoursOnline + i * dt / 3600 - hardAt).toFixed(1)}시간, 누적 골드 +${G.fmt(s.gold + spentTotal - hardGold0)})`); }
     if (every && (hoursOnline + i * dt / 3600) - lastPrint >= every) {
       lastPrint = hoursOnline + i * dt / 3600;
-      console.log(`h=${lastPrint.toFixed(1)} day${d} Lv${s.level} stage=${s.region}-${s.round}${s.lock ? '고정' : ''} best=${s.best.region}-${s.best.round} gold=${G.fmt(s.gold)} hp=${G.fmt(rt.d.hp)} main=${G.fmt(rt.d.main)}`);
+      console.log(`h=${lastPrint.toFixed(1)} day${d} Lv${s.level} stage=${s.region}-${s.round}${s.lock ? '고정' : ''} best=${s.best.region}-${s.best.round} gold=${G.fmt(s.gold)} 누적=${G.fmt(s.gold + spentTotal)} hp=${G.fmt(rt.d.hp)} main=${G.fmt(rt.d.main)}`);
     }
   }
   hoursOnline += perDay;
@@ -66,6 +69,7 @@ for (let r = 1; r <= G.CFG.regions.length; r++) {
   const c = cleared[r];
   console.log(`  ${r}지역 클리어: ` + (c ? `${c.h.toFixed(2)}시간째(${c.day}일차) Lv${c.lv} 이 지역 처치 ${c.kills} ${c.st}` : '못 깸'));
 }
+hardLog.forEach((l) => console.log('  ' + l));
 const owned = s.inv.concat(Object.values(s.equip)).filter(Boolean);
 console.log(`  보유 전설 ${owned.filter((x) => x.grade === 4).length}개, 영웅 ${owned.filter((x) => x.grade === 3).length}개 (보관함 ${s.inv.length})`);
 console.log(`  최종: Lv${s.level} 최고 ${s.best.region}-${s.best.round} 총 처치 ${s.kills} 누적 획득 골드 약 ${G.fmt(s.gold + spentTotal)} (남은 ${G.fmt(s.gold)})`);
