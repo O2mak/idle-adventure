@@ -250,10 +250,10 @@ function drawWeaponHi(it) {
 }
 
 // ---------- 고양이 영웅 (PixelLab으로 만든 그림) ----------
-// img/cat_east.png: 오른쪽을 보고 서 있는 모습(96x96). 대기 동작은 이 그림을 부위별로 조금씩 움직여서 만듦.
-// img/cat_walk.png: PixelLab이 만든 걷는 모습 6장(96x96씩 가로로 이어 붙임).
+// img/cat_east.png: 오른쪽 앞(몬스터 쪽, 비스듬한 3/4 각도)을 보고 서 있는 모습(96x96). 대기 동작은 이 그림의 머리와 가슴을 조금씩 움직여서 만듦.
+// img/cat_walk.png: PixelLab이 만든 같은 각도의 걷는 모습 6장(96x96씩 가로로 이어 붙임).
 // 장비는 겉모습에 그려지지 않고, 무기는 앞쪽 장갑 위치(HERO.hand)에 따로 얹음
-const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 91, hand: [29, 32] };
+const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 91, hand: [32, 31] };
 function heroLoad() {
   if (HERO.east || typeof Image === 'undefined') return;
   let n = 0;
@@ -262,23 +262,18 @@ function heroLoad() {
   HERO.walkImg = new Image(); HERO.walkImg.onload = done; HERO.walkImg.src = 'img/cat_walk.png';
 }
 function heroIdleFrame(o) {
-  // o: dyHead, dyChest (위로 올리는 칸 수), tail (꼬리 흔들림 크기), ph (위상)
+  // o: dyHead, dyChest (위로 올리는 칸 수)
   const im = HERO.east, s = _mk(96, 96), g = s.g, sl = (sx, sy, sw, sh, dx, dy) => g.drawImage(im, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh);
-  sl(34, 72, 32, 24, 0, 0);                                    // 다리
-  for (let y = 38; y < 74; y += 2) {                           // 꼬리: 줄마다 위아래로 살랑거림 (끝이 더 크게)
-    const k = (74 - y) / 36, dy = Math.round(Math.sin(o.ph + y * 0.18) * (o.tail || 0) * k);
-    g.drawImage(im, 12, y, 26, 2, 12, y + dy, 26, 2);
-  }
-  sl(36, 34, 30, 40, 0, 0);                                    // 몸통
-  sl(36, 34, 30, 16, 0, o.dyChest || 0);                       // 가슴과 스카프
-  sl(30, 2, 38, 36, 0, o.dyHead || 0);                         // 머리
+  sl(30, 70, 40, 26, 0, 0);                                    // 다리
+  sl(28, 34, 44, 40, 0, 0);                                    // 몸통과 팔
+  sl(28, 34, 44, 16, 0, o.dyChest || 0);                       // 가슴과 스카프
+  sl(28, 2, 42, 36, 0, o.dyHead || 0);                         // 머리
   return s.c;
-}
-function heroBuild() {
+}function heroBuild() {
   HERO.base = heroIdleFrame({ ph: 0 });
   for (let f = 0; f < 8; f++) {                                // 대기: 숨 쉬듯 머리와 가슴이 오르내리고 꼬리가 살랑거림
     const p = f / 8 * Math.PI * 2, b = (Math.sin(p) + 1) / 2;
-    HERO.idle.push(heroIdleFrame({ dyHead: -(b > 0.3 ? 1 : 0) - (b > 0.85 ? 1 : 0), dyChest: b > 0.55 ? -1 : 0, tail: 2.5, ph: p }));
+    HERO.idle.push(heroIdleFrame({ dyHead: -(b > 0.3 ? 1 : 0) - (b > 0.85 ? 1 : 0), dyChest: b > 0.55 ? -1 : 0 }));
   }
   for (let f = 0; f < 6; f++) { const c = _mk(96, 96); c.g.drawImage(HERO.walkImg, f * 96, 0, 96, 96, 0, 0, 96, 96); HERO.walk.push(c.c); }
   const h = _mk(96, 96); h.g.drawImage(HERO.base, 0, 0); h.g.globalCompositeOperation = 'source-atop'; h.g.fillStyle = 'rgba(255,60,60,0.5)'; h.g.fillRect(0, 0, 96, 96);
