@@ -1,4 +1,4 @@
-﻿// 고해상도 캐릭터 그림: 강아지/치즈 고양이, 입는 장비, 손에 드는 무기.
+// 고해상도 캐릭터 그림: 강아지/치즈 고양이, 입는 장비, 손에 드는 무기.
 // 전투 화면은 256x144 칸이지만 캐릭터는 가로세로 2배 촘촘한 64x64로 그려서(HK=2) 더 자세한 도트를 표현함.
 // 화면에는 크기를 절반으로 줄여 그리므로 캔버스의 실제 픽셀과 1:1로 맞음.
 const HK = 2;
@@ -36,74 +36,84 @@ function _eyeHi(K, cx, cy, mode, iris) {
   }
 }
 
-// ---------- 강아지 (코기 느낌: 납작한 색 면, 선 굵게, 쫑긋한 큰 귀, 흰 줄무늬와 흰 주둥이) ----------
-function _dogEye(K, cx, cy, mode) {
-  const ink = '#241a1a';
-  if (mode === 'open') { K.r(cx - 2, cy - 2, 5, 5, ink); K.r(cx - 2, cy - 2, 2, 2, '#ffffff'); }
-  else if (mode === 'happy') { K.r(cx - 3, cy + 1, 2, 2, ink); K.r(cx - 1, cy - 1, 3, 2, ink); K.r(cx + 2, cy + 1, 2, 2, ink); }
-  else if (mode === 'hurt') { for (let i = -2; i <= 2; i++) { K.r(cx + i, cy + i, 2, 1, ink); K.r(cx + i, cy - i, 2, 1, ink); } }
-  else K.r(cx - 3, cy + 1, 7, 2, ink);
+// ---------- 강아지 / 고양이 (명암이 들어간 도트: 3단계 음영, 따뜻한 색 윤곽선, 반짝이는 큰 눈) ----------
+// 모든 좌표는 64x64 칸 기준 (모자 등 겹쳐 그리는 장비와 위치가 맞도록 머리 위치는 예전과 같음)
+function _pe(s, cx, cy, rx, ry, base, o) {   // 음영 있는 타원: 위쪽 왼쪽이 밝고 아래쪽 오른쪽이 어두움
+  o = o || {};
+  _ell(s, cx, cy, rx, ry, { b: base, s: o.s || _mix(base, '#3a1a0a', 0.28), h: o.h || _mix(base, '#ffffff', 0.34) });
+}
+function _eyeBig(s, cx, cy, mode, ink, glint) {   // 크고 반짝이는 눈 (open) / 웃는 눈 / 아픈 눈 / 감은 눈
+  const r = (x, y, w, h, c) => _rect(s, x, y, w, h, c);
+  if (mode === 'open') {
+    r(cx - 3, cy - 5, 7, 11, ink); r(cx - 4, cy - 4, 9, 9, ink); r(cx - 5, cy - 2, 11, 5, ink);
+    r(cx - 2, cy + 1, 5, 4, glint.iris); r(cx - 1, cy + 3, 3, 2, _mix(glint.iris, '#ffffff', 0.35));
+    r(cx - 3, cy - 4, 3, 3, '#ffffff'); r(cx - 4, cy - 3, 1, 1, '#ffffff'); r(cx + 2, cy + 2, 2, 2, '#ffffff');
+  } else if (mode === 'happy') {
+    for (const [dx, dy] of [[-4, 1], [-3, 0], [-2, -1], [-1, -2], [0, -2], [1, -2], [2, -1], [3, 0], [4, 1]]) r(cx + dx, cy + dy, 1, 2, ink);
+  } else if (mode === 'hurt') {
+    for (let i = -3; i <= 3; i++) { r(cx + i, cy + i, 2, 1, ink); r(cx + i, cy - i, 2, 1, ink); }
+  } else { r(cx - 5, cy + 1, 11, 2, ink); r(cx - 6, cy, 1, 1, ink); r(cx + 6, cy, 1, 1, ink); }
 }
 function drawDogHi(e) {
-  const s = _mk(32 * HK, 32 * HK), K = _kit(s);
-  const main = { b: '#F0C040' }, white = { b: '#FFF8EC' }, pink = '#F4B8D8';
-  const tw = e.tail ? 1 : 0;
-  // 짧은 꼬리 (흔들흔들)
-  K.E(24.6 + tw, 25.5, 2.2, 2.2, main); K.E(25 + tw, 24.6, 1.1, 1.1, white);
-  // 몸 + 흰 배 + 흰 발
-  K.E(16, 25.5, 6.8, 4.8, main); K.E(16, 27, 4.4, 3.4, white);
-  K.E(11.5, 29, 3.2, 2, white); K.E(20.5, 29, 3.2, 2, white);
-  for (const x of [21, 24, 40, 43]) K.r(x, 59, 1, 2, '#e8dcc0');
-  // 쫑긋한 큰 귀 (안쪽 분홍)
-  K.T(3.6, 13, 5.4, 1.6, 13.4, 9.6, main.b); K.T(28.4, 13, 26.6, 1.6, 18.6, 9.6, main.b);
-  K.T(6.6, 11.4, 7, 5, 11.6, 9.4, pink); K.T(25.4, 11.4, 25, 5, 20.4, 9.4, pink);
-  // 얼굴: 주황 윗부분 + 흰 이마 줄무늬 + 흰 아래 얼굴
-  K.E(16, 16.4, 12, 9, main);
-  K.R(14.6, 8.4, 2.8, 6.4, white.b); K.T(14.6, 14.8, 17.4, 14.8, 16, 19, white.b);
-  K.E(16, 22, 9.8, 5.2, white); K.R(6.5, 17.6, 3, 3, white.b); K.R(22.5, 17.6, 3, 3, white.b);
-  // 눈 / 코 / 입 / 혀
-  _dogEye(K, 22, 31, e.eyes); _dogEye(K, 42, 31, e.eyes);
-  K.r(29, 36, 6, 3, '#241a1a'); K.r(30, 39, 4, 1, '#241a1a');
-  K.r(27, 40, 1, 1, '#241a1a'); K.r(28, 41, 2, 1, '#241a1a'); K.r(34, 41, 2, 1, '#241a1a'); K.r(36, 40, 1, 1, '#241a1a');
-  if (e.mouth) { K.r(29, 42, 6, 4, '#c8283a'); K.r(31, 46, 2, 2, '#c8283a'); K.r(29, 41, 6, 1, '#241a1a'); }
-  else { K.r(30, 42, 4, 3, '#e04a5a'); K.r(31, 45, 2, 1, '#e04a5a'); }
-  _outline(s, '#2a1a1a');
+  const s = _mk(32 * HK, 32 * HK), r = (x, y, w, h, c) => _rect(s, x, y, w, h, c), t = (a, b, c2, d, e2, f, col) => _tri(s, a, b, c2, d, e2, f, col);
+  const FUR = '#F0A838', FUR_D = '#C8741E', FUR_L = '#FFD070', WH = '#FFF8EC', WH_D = '#EAD8BC', PINK = '#F4A8C8', INK = '#2a1a1a';
+  const tw = e.tail ? 2 : 0;
+  // 꼬리 (복실복실 짧은 꼬리)
+  _pe(s, 50 + tw, 50, 5, 5, FUR); _pe(s, 51 + tw, 48, 2.6, 2.6, WH);
+  // 몸통 + 흰 배 + 앞발
+  _pe(s, 32, 50, 14, 10, FUR); _pe(s, 32, 53, 8, 7, WH, { s: WH_D, h: '#ffffff' });
+  _pe(s, 23, 58, 6.4, 3.8, WH, { s: WH_D, h: '#ffffff' }); _pe(s, 41, 58, 6.4, 3.8, WH, { s: WH_D, h: '#ffffff' });
+  for (const x of [20, 24, 38, 42]) r(x, 58, 1, 2, WH_D);
+  // 쫑긋한 큰 귀 (안쪽 분홍, 바깥 그림자)
+  t(7, 26, 10, 3, 26, 19, FUR); t(57, 26, 54, 3, 38, 19, FUR);
+  t(10, 22, 11, 8, 20, 19, FUR_D); t(54, 22, 53, 8, 44, 19, FUR_D);
+  t(13, 22, 14, 10, 21, 19, PINK); t(51, 22, 50, 10, 43, 19, PINK);
+  // 얼굴: 주황 윗머리 + 흰 이마 줄무늬 + 흰 아랫 얼굴
+  _pe(s, 32, 32, 24, 18, FUR);
+  _pe(s, 32, 44, 19.5, 10, WH, { s: WH_D, h: '#ffffff' }); r(13, 35, 6, 6, WH); r(45, 35, 6, 6, WH);
+  r(29, 16, 6, 14, WH); t(29, 29, 35, 29, 32, 38, WH);
+  r(29, 16, 1, 12, WH_D);
+  // 눈썹 점 (코기 특유)
+  r(16, 21, 3, 2, FUR_L); r(45, 21, 3, 2, FUR_L);
+  _eyeBig(s, 21, 31, e.eyes, INK, { iris: '#6a3a1a' }); _eyeBig(s, 43, 31, e.eyes, INK, { iris: '#6a3a1a' });
+  // 코 / 입
+  _pe(s, 32, 38, 4.6, 3.2, '#3a2a2a', { s: '#1a1010', h: '#7a6a6a' }); r(30, 36, 2, 1, '#c8c0c0');
+  r(31, 41, 2, 3, INK); r(27, 44, 5, 1, INK); r(32, 44, 5, 1, INK); r(26, 43, 1, 1, INK); r(37, 43, 1, 1, INK);
+  if (e.mouth) { _pe(s, 32, 47, 4.4, 3.6, '#c8283a', { s: '#8a1424', h: '#ff6a7a' }); r(30, 44, 4, 1, INK); }
+  else { _pe(s, 32, 46, 2.6, 2.6, '#f0506a', { s: '#c02a44', h: '#ff9aaa' }); }
+  // 볼 홍조
+  _ell(s, 13, 38, 3.4, 2, { b: '#ffb8a8' }); _ell(s, 51, 38, 3.4, 2, { b: '#ffb8a8' });
+  _outline(s, '#4a2a10');
   return s.c;
 }
-// ---------- 치즈 고양이 (납작한 색 면 도트, 넓은 얼굴, 큰 귀, 이마 줄무늬, 크림색 주둥이) ----------
-function _catEye(K, cx, cy, mode) {
-  const ink = '#52352F';
-  if (mode === 'open') { K.r(cx - 2, cy - 4, 5, 8, ink); K.r(cx - 3, cy - 3, 7, 6, ink); K.r(cx - 2, cy - 3, 2, 3, '#ffffff'); }
-  else if (mode === 'happy') { K.r(cx - 4, cy, 3, 2, ink); K.r(cx - 2, cy - 2, 5, 2, ink); K.r(cx + 3, cy, 3, 2, ink); } // 웃는 눈 ^
-  else if (mode === 'hurt') { for (let i = -2; i <= 2; i++) { K.r(cx + i, cy + i, 2, 1, ink); K.r(cx + i, cy - i, 2, 1, ink); } }
-  else K.r(cx - 4, cy + 1, 9, 2, ink);   // 깜빡임
-}
 function drawCatHi(e) {
-  const s = _mk(32 * HK, 32 * HK), K = _kit(s);
-  const main = { b: '#EAB97B' }, stripe = '#B38245', cream = { b: '#FFEEDA' }, pink = '#F28A96';
-  const tw = e.tail ? 1 : 0;
-  // 가늘고 긴 꼬리 (줄무늬, 끝은 크림색)
-  [[48, 55], [51, 54], [53, 52], [54, 49], [54 + tw, 45], [55 + tw, 41], [55 + tw, 37]].forEach(([x, y], i) => { K.r(x - 1, y - 1, 4, 4, '#EAB97B'); if (i % 2) K.r(x - 1, y - 1, 4, 2, stripe); });
-  K.r(55 + tw - 1, 34, 4, 4, '#FFEEDA');
-  // 몸 + 크림 배 + 크림 발
-  K.E(16, 24.8, 6.6, 5, main); K.E(16, 26.2, 3.8, 3.2, cream);
-  K.E(11.5, 28.6, 3, 2, cream); K.E(20.5, 28.6, 3, 2, cream);
-  for (const x of [20, 23, 40, 43]) K.r(x, 58, 1, 2, '#e3cfae');
-  // 큰 귀 (안쪽 크림색)
-  K.T(4, 11, 5.5, 2.4, 13.4, 7, main.b); K.T(28, 11, 26.5, 2.4, 18.6, 7, main.b);
-  K.T(6.4, 9.6, 6.8, 5, 11, 7.6, cream.b); K.T(25.6, 9.6, 25.2, 5, 21, 7.6, cream.b);
-  // 넓은 얼굴
-  K.E(16, 15.2, 11.6, 8.8, main);
-  K.r(26, 13, 3, 6, stripe); K.r(31, 13, 2, 5, stripe); K.r(35, 13, 3, 6, stripe);     // 이마 줄무늬
-  K.r(11, 29, 6, 2, stripe); K.r(11, 33, 5, 2, stripe); K.r(47, 29, 6, 2, stripe); K.r(48, 33, 5, 2, stripe);   // 볼 줄무늬
-  K.E(16, 20, 6.2, 4.2, cream); K.E(16, 21.6, 4.4, 2.6, cream);
-  // 눈, 코, 입, 수염
-  _catEye(K, 21, 26, e.eyes); _catEye(K, 43, 26, e.eyes);
-  K.r(30, 31, 4, 2, pink); K.r(31, 33, 2, 1, pink);
-  if (e.mouth) { K.E(16, 20.6, 1.8, 1.5, { b: '#8a2a35' }); }
-  else { K.r(28, 34, 3, 1, pink); K.r(33, 34, 3, 1, pink); K.r(31, 35, 2, 1, pink); }
-  for (const dy of [-1, 2, 5]) { K.r(2, 31 + dy, 8, 1, '#f1d3a0'); K.r(54, 31 + dy, 8, 1, '#f1d3a0'); }
-  _outline(s, '#9a6a35');
+  const s = _mk(32 * HK, 32 * HK), r = (x, y, w, h, c) => _rect(s, x, y, w, h, c), t = (a, b, c2, d, e2, f, col) => _tri(s, a, b, c2, d, e2, f, col);
+  const FUR = '#E8A050', FUR_D = '#B8682A', FUR_L = '#F8C888', STR = '#9A4E1E', CREAM = '#FFE8C8', CREAM_D = '#E8C8A0', PINK = '#F08A96', INK = '#1e1418';
+  const tw = e.tail ? 2 : 0;
+  // 꼬리 (끝이 크림색인 줄무늬 꼬리)
+  [[46, 56], [50, 55], [53, 52], [55, 48], [55 + tw, 43], [56 + tw, 38], [56 + tw, 33]].forEach(([x, y], i, a) => { _pe(s, x, y, 3.4, 3.4, i === a.length - 1 ? CREAM : FUR); if (i % 2 && i < a.length - 1) r(x - 3, y - 1, 6, 2, STR); });
+  // 몸통 + 크림 배 + 앞발
+  _pe(s, 32, 50, 13, 10, FUR); _pe(s, 32, 52, 7.4, 7, CREAM, { s: CREAM_D, h: '#ffffff' });
+  r(24, 48, 3, 1, STR); r(37, 48, 3, 1, STR); r(23, 52, 3, 1, STR); r(38, 52, 3, 1, STR);
+  _pe(s, 23, 58, 6, 3.8, CREAM, { s: CREAM_D, h: '#ffffff' }); _pe(s, 41, 58, 6, 3.8, CREAM, { s: CREAM_D, h: '#ffffff' });
+  for (const x of [20, 24, 38, 42]) r(x, 58, 1, 2, CREAM_D);
+  // 큰 귀 (안쪽 분홍/크림, 바깥쪽 어둡게)
+  t(8, 24, 10, 4, 27, 15, FUR); t(56, 24, 54, 4, 37, 15, FUR);
+  t(10, 21, 12, 8, 21, 15, FUR_D); t(54, 21, 52, 8, 43, 15, FUR_D);
+  t(12, 21, 13, 10, 21, 16, CREAM); t(52, 21, 51, 10, 43, 16, CREAM); t(14, 20, 14.6, 13, 19, 16.6, PINK); t(50, 20, 49.4, 13, 45, 16.6, PINK);
+  // 넓은 얼굴 + 이마 줄무늬 + 볼 줄무늬
+  _pe(s, 32, 31, 23, 18, FUR);
+  t(24, 14, 27, 14, 25.5, 22, STR); t(30, 12, 34, 12, 32, 21, STR); t(37, 14, 40, 14, 38.5, 22, STR);
+  r(9, 31, 6, 2, STR); r(10, 36, 5, 2, STR); r(49, 31, 6, 2, STR); r(49, 36, 5, 2, STR); r(12, 26, 4, 2, STR); r(48, 26, 4, 2, STR);
+  _pe(s, 32, 41, 11, 8, CREAM, { s: CREAM_D, h: '#ffffff' });
+  _eyeBig(s, 21, 29, e.eyes, INK, { iris: '#6a4a1a' }); _eyeBig(s, 43, 29, e.eyes, INK, { iris: '#6a4a1a' });
+  // 코 / 입 / 수염
+  t(29, 35, 35, 35, 32, 39, PINK); r(31, 39, 2, 2, '#b05a6a');
+  if (e.mouth) { _pe(s, 32, 44, 3.6, 3, '#8a2a35', { s: '#5a1424', h: '#c85a6a' }); r(28, 41, 4, 1, STR); r(32, 41, 4, 1, STR); }
+  else { r(28, 41, 3, 1, STR); r(33, 41, 3, 1, STR); r(31, 41, 2, 1, STR); r(27, 40, 1, 1, STR); r(36, 40, 1, 1, STR); }
+  for (const dy of [-2, 2, 6]) { r(0, 36 + dy, 11, 1, '#f6dcb0'); r(53, 36 + dy, 11, 1, '#f6dcb0'); }
+  _ell(s, 13, 40, 3.4, 2, { b: '#ffa89a' }); _ell(s, 51, 40, 3.4, 2, { b: '#ffa89a' });
+  _outline(s, '#5a2c10');
   return s.c;
 }
 // ---------- 입는 장비 (얼굴과 몸을 가리지 않는 작은 소품) ----------
