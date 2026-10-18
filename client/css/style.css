@@ -356,3 +356,8 @@ body.mode-mini #hudLock { bottom: 20px; padding: 2px 6px; }
 @keyframes bossGlow { from { box-shadow: 0 0 0 1px #ffb0a0; } to { box-shadow: 0 0 14px 3px #ffe066; } }
 #rlWheel { display: block; margin: 4px 0; }
 #rlWheel .mi { width: 22px; height: 22px; }
+
+/* 다른 사람 장비 구경 카드 */
+.profcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 10px 0; }
+.profcard .rn .tname { font-weight: bold; } .profcard .rn .tsub, .profcard .rn .tstat { font-size: 12px; }
+.rankrow[data-act]:hover { filter: brightness(1.15); }

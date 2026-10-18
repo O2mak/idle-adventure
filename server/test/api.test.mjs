@@ -1,4 +1,4 @@
-﻿// 서버 통합 테스트: 먼저 `npm run dev` 로 서버를 켜 둔 상태에서 `npm test`
+// 서버 통합 테스트: 먼저 `npm run dev` 로 서버를 켜 둔 상태에서 `npm test`
 import { execSync } from 'node:child_process';
 import { newSave } from '../src/shared/game.generated.js';
 import { seasonInfo } from '../src/season.js';
@@ -295,6 +295,13 @@ ok('잠긴 동안은 올바른 비밀번호도 거부', r.status === 429 && r.da
   r = await api('GET', '/api/admin?key=dev-admin-key');
   ok('운영자 화면: 키가 맞으면 의견 목록', r.status === 200 && r.data.feedback.some((f) => f.nickname === '의견' + sfx && f.body.includes('태그')) && r.data.stats.accounts > 0, JSON.stringify(r.data).slice(0, 150));
   ok('운영자 화면: 이용자 목록(진행 요약 포함, 비밀번호 정보는 없음)', Array.isArray(r.data.users) && r.data.users.some((u) => u.nickname === '의견' + sfx && u.level === 1 && u.loginId) && !JSON.stringify(r.data.users).match(/pw_hash|pw_salt|session/), JSON.stringify(r.data.users).slice(0, 200));
+  ok('운영자 화면: 전투력이 계산되어 나옴', r.data.users.some((u) => u.nickname === '의견' + sfx && Number.isFinite(u.power) && u.power > 0 && !('data' in u)), JSON.stringify(r.data.users).slice(0, 200));
+  r = await api('GET', '/api/profile?nickname=' + encodeURIComponent('의견' + sfx), null, ftk);
+  ok('장비 구경: 요약과 착용 장비', r.status === 200 && r.data.level === 1 && r.data.equip.weapon && Number.isFinite(r.data.power) && !JSON.stringify(r.data).match(/pw_hash|session|token/), JSON.stringify(r.data).slice(0, 200));
+  r = await api('GET', '/api/profile?nickname=' + encodeURIComponent('없는사람' + sfx), null, ftk);
+  ok('장비 구경: 없는 사람은 404', r.status === 404);
+  r = await api('GET', '/api/profile?nickname=x');
+  ok('장비 구경: 로그인이 필요함', r.status === 401);
 }
 r = await api('POST', '/api/logout', null, tokenC);
 ok('로그아웃', r.status === 200);

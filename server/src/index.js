@@ -1,5 +1,5 @@
-﻿// 서버 진입점: /api/* 요청 처리 (그 외는 게임 화면 파일을 그대로 전달)
-import { CFG, newSave, dayKey } from './shared/game.generated.js';
+// 서버 진입점: /api/* 요청 처리 (그 외는 게임 화면 파일을 그대로 전달)
+import { CFG, newSave, dayKey, mergeSave, calcStats, combatPower } from './shared/game.generated.js';
 import { hashPassword, verifyPassword, randomToken, sha256Hex } from './crypto.js';
 import { checkNickname, checkLoginId, checkPassword } from './nickname.js';
 import { seasonInfo } from './season.js';
@@ -197,6 +197,22 @@ async function ranking(request, env, now) {
   });
 }
 
+// 다른 이용자의 장비 구경: 닉네임으로 요약 정보(레벨, 진행, 전투력, 착용 장비)만 보여줌. 로그인한 사람만 볼 수 있고 비밀 값은 포함하지 않음
+async function profile(request, env) {
+  await auth(request, env);
+  const nick = (new URL(request.url).searchParams.get('nickname') || '').trim();
+  if (!nick) fail(400, 'bad_nick', '닉네임이 필요해요.');
+  const row = await env.DB.prepare('SELECT a.nickname, s.data FROM accounts a JOIN saves s ON s.account_id = a.id WHERE a.nickname = ?').bind(nick).first();
+  if (!row) fail(404, 'no_user', '찾을 수 없는 사람이에요.');
+  const sv = mergeSave(JSON.parse(row.data)), d = calcStats(sv);
+  const equip = {};
+  for (const sl of CFG.slots) { const it = sv.equip[sl]; if (it) equip[sl] = { uid: it.uid, slot: it.slot, grade: it.grade, region: it.region, cls: it.cls, enh: it.enh, name: it.name, opts: it.opts }; }
+  return json({
+    nickname: row.nickname, level: sv.level, cls: sv.weaponType, animal: sv.animal, best: sv.best, hardBest: sv.hardBest, endlessBest: sv.endless.best,
+    power: combatPower(sv, d), hp: d.hp, atk: d.main, equip, titles: (sv.titles || []).map((t) => t.name),
+  });
+}
+
 async function setNickname(request, env, now) {
   const acct = await auth(request, env);
   const b = await readJson(request);
@@ -266,9 +282,14 @@ async function adminFeedback(request, env) {
     "json_extract(s.data,'$.level') AS level, json_extract(s.data,'$.weaponType') AS cls, json_extract(s.data,'$.animal') AS animal, " +
     "json_extract(s.data,'$.best.region') AS bestRegion, json_extract(s.data,'$.best.round') AS bestRound, " +
     "json_extract(s.data,'$.endless.best') AS endlessBest, json_extract(s.data,'$.kills') AS kills, " +
-    "(SELECT COUNT(*) FROM flags f WHERE f.account_id = a.id) AS flagCount " +
+    "(SELECT COUNT(*) FROM flags f WHERE f.account_id = a.id) AS flagCount, s.data AS data " +
     "FROM accounts a LEFT JOIN saves s ON s.account_id = a.id ORDER BY a.last_seen DESC LIMIT 500").all();
   const stats = await env.DB.prepare('SELECT (SELECT COUNT(*) FROM accounts) AS accounts, (SELECT COUNT(*) FROM accounts WHERE last_seen > ?) AS active_day').bind(Date.now() - 86400e3).first();
+  // 전투력(화면에 보이는 값과 같은 공식)을 서버에서 계산해 요약만 내려줌 (저장 원본은 내려주지 않음)
+  for (const u of users.results) {
+    try { const sv = mergeSave(JSON.parse(u.data)); u.power = combatPower(sv, calcStats(sv)); u.hardRegion = sv.hardBest && (sv.hardBest.region > 1 || sv.hardBest.round > 1) ? sv.hardBest.region : 0; } catch (e) { u.power = null; }
+    delete u.data;
+  }
   return json({ feedback: fb.results, flags: flags.results, users: users.results, stats });
 }
 
@@ -279,6 +300,7 @@ const routes = {
   'GET /api/me': me,
   'PUT /api/save': putSave,
   'GET /api/ranking': ranking,
+  'GET /api/profile': profile,
   'POST /api/nickname': setNickname,
   'POST /api/password': setPassword,
   'POST /api/logout': logout,

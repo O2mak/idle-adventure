@@ -206,6 +206,15 @@ function uiAct(act) {
       UI.chap = b === 'prev' ? Math.max(1, (UI.chap || s.region) - 1) : b === 'next' ? Math.min(N, (UI.chap || s.region) + 1) : Number(b);
       break;
     }
+    case 'profile': {   // 순위표에서 다른 사람 장비 구경
+      const row = UI.rank && UI.rank.data && UI.rank.data.list[Number(b)];
+      if (!row || (UI.prof && UI.prof.busy)) break;
+      if (row.me) { UI.prof = { name: row.nickname, me: true }; break; }
+      UI.prof = { name: row.nickname, busy: true };
+      API.profile(row.nickname).then((d) => { UI.prof = { name: row.nickname, data: d }; }).catch((e) => { UI.prof = { name: row.nickname, err: e.message || '불러오지 못했어요.' }; }).finally(() => { UI.lastHtml = ''; });
+      break;
+    }
+    case 'profclose': UI.prof = null; break;
     case 'diff': {   // 보통 / 어려움 보기 전환
       UI.hardView = b === 'hard' && hardOpen(s);
       UI.chap = s.hard === UI.hardView ? s.region : 1;
@@ -495,6 +504,23 @@ function fetchRanking(force) {
 }
 const fmtWhen = (ms) => { const d = new Date(ms); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
+// 다른 사람의 장비 구경 카드 (순위표에서 이름을 누르면 나타남)
+function profileCard() {
+  const P = UI.prof;
+  if (!P) return '';
+  let h = `<div class="profcard"><div class="head"><span><b>${esc(P.name)}</b>님의 장비</span><button class="chip" data-act="profclose">닫기</button></div>`;
+  if (P.busy) return h + '<p class="note">불러오는 중…</p></div>';
+  if (P.err) return h + `<p class="note">${esc(P.err)}</p></div>`;
+  if (P.me) return h + '<p class="note">내 장비는 장비 탭에서 볼 수 있어요.</p></div>';
+  const d = P.data, hb = d.hardBest;
+  h += `<p class="note">${esc(CFG.classes[d.cls] || '')} · Lv.${d.level} · 전투력 ${fmt(d.power)} · 진행 ${d.best.region}-${d.best.round}` +
+    `${hb && (hb.region > 1 || hb.round > 1) ? ` · 어려움 ${hb.region}-${hb.round}` : ''}${d.endlessBest ? ` · 무한 ${d.endlessBest}층` : ''}${d.titles && d.titles.length ? ` · 칭호 ${esc(d.titles.join(', '))}` : ''}</p>`;
+  for (const sl of CFG.slots) {
+    const it = d.equip[sl];
+    h += it ? `<div class="row">${gearIcon(it, 'sm')}<div class="rn">${itemInfoHtml(it, 'eq')}</div></div>` : `<div class="row" style="opacity:.6"><div class="rn">${CFG.slotNames[sl]}<small>비어 있음</small></div></div>`;
+  }
+  return h + '</div>';
+}
 function panelEndless() {
   const rt = UI.rt, s = rt.save, E = CFG.endless, on = !!rt.endless;
   fetchRanking(false);
@@ -513,11 +539,12 @@ function panelEndless() {
     if (d) {
       if (!d.list.length) h += `<p class="note">아직 순위에 오른 사람이 없어요. ${E.minFloor}층에 처음 도달해 보세요!</p>`;
       h += '<div class="rankbox">' + d.list.map((r) =>
-        `<div class="rankrow ${r.me ? 'me' : ''} ${r.rank <= 3 ? 'top' + r.rank : ''}"><span class="rk">${r.rank}</span><span class="nm">${esc(r.nickname)}</span><span class="fl">${r.floor}층</span><span class="wh">${fmtWhen(r.reachedAt)}</span></div>`).join('') + '</div>';
+        `<div class="rankrow ${r.me ? 'me' : ''} ${r.rank <= 3 ? 'top' + r.rank : ''}" data-act="profile:${r.rank - 1}" style="cursor:pointer" title="눌러서 장비 구경"><span class="rk">${r.rank}</span><span class="nm">${esc(r.nickname)}</span><span class="fl">${r.floor}층</span><span class="wh">${fmtWhen(r.reachedAt)}</span></div>`).join('') + '</div>';
       if (d.me && !d.list.some((r) => r.me)) h += `<div class="rankrow me"><span class="rk">${d.me.rank}</span><span class="nm">나</span><span class="fl">${d.me.floor}층</span><span class="wh">${fmtWhen(d.me.reachedAt)}</span></div>`;
       else if (!d.me && s.endless.best) h += `<p class="note">내 기록(${s.endless.best}층)이 아직 순위에 없어요. ${s.endless.best < E.minFloor ? `${E.minFloor}층부터 올라요.` : '잠시 후 저장되면 나타나요.'}</p>`;
     }
   }
+  h += profileCard();
   h += '<h3>시즌 보상</h3><p class="note">시즌이 끝나는 순간의 순위로 다음 시즌 시작 때 받아요.</p>';
   for (const r of E.rewards) {
     const who = r.rank ? `${r.rank}등` : `상위 ${Math.round(r.pct * 100)}%`;

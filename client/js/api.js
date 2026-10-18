@@ -1,4 +1,4 @@
-﻿// 서버와 통신. 같은 주소(/api/...)로 요청하므로 서버가 게임 화면도 함께 서비스해야 동작합니다.
+// 서버와 통신. 같은 주소(/api/...)로 요청하므로 서버가 게임 화면도 함께 서비스해야 동작합니다.
 const API = {
   token: null,
   tokenKey: 'idlegame_token',
@@ -38,6 +38,7 @@ const API = {
   me() { return this.call('GET', '/api/me'); },
   save(save, keepalive) { return this.call('PUT', '/api/save', { save }, keepalive); },
   ranking() { return this.call('GET', '/api/ranking'); },
+  profile(nickname) { return this.call('GET', '/api/profile?nickname=' + encodeURIComponent(nickname)); },
   feedback(category, body, context) { return this.call('POST', '/api/feedback', { category, body, context }); },
   nickname(nickname) { return this.call('POST', '/api/nickname', { nickname }); },
   password(oldPassword, newPassword) { return this.call('POST', '/api/password', { oldPassword, newPassword }); },

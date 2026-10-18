@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -25,6 +25,7 @@
 <h1>운영자 확인 (의견 · 의심 기록)</h1>
 <p>운영자 키를 입력하세요. <input id="key" type="password" autocomplete="off"> <button id="go">불러오기</button> <span id="msg"></span></p>
 <div id="stats"></div>
+<h2>능력치 분포</h2><div id="dist"></div>
 <h2>이용자 목록</h2><div id="users" style="overflow-x:auto"></div>
 <h2>받은 의견</h2><div id="fb"></div>
 <h2>의심스러운 저장 기록</h2><div id="flags"></div>
@@ -39,10 +40,32 @@ let USERS = [], sortKey = 'lastSeen', sortDir = -1;
 const COLS = [
   ['nickname', '닉네임', (u) => u.nickname], ['loginId', '아이디', (u) => u.loginId], ['cls', '직업/동물', (u) => `${CLS[u.cls] || '-'}/${ANI[u.animal] || '-'}`],
   ['level', '레벨', (u) => u.level ?? '-'], ['bestRegion', '최고 진행', (u) => u.bestRegion ? `${u.bestRegion}-${u.bestRound}` : '-'],
-  ['endlessBest', '무한 최고층', (u) => u.endlessBest || '-'], ['kills', '처치', (u) => u.kills ?? '-'],
+  ['endlessBest', '무한 최고층', (u) => u.endlessBest || '-'], ['power', '전투력', (u) => u.power == null ? '-' : u.power.toLocaleString('ko-KR')], ['hardRegion', '어려움', (u) => u.hardRegion ? u.hardRegion + '지역' : '-'], ['kills', '처치', (u) => u.kills ?? '-'],
   ['playTime', '플레이 시간', (u) => u.playTime ? (u.playTime / 3600).toFixed(1) + '시간' : '-'], ['season', '시즌', (u) => u.season ?? '-'],
   ['lastSeen', '마지막 접속', (u) => ago(u.lastSeen)], ['createdAt', '가입일', (u) => u.createdAt ? new Date(u.createdAt).toLocaleDateString('ko-KR') : '-'], ['flagCount', '의심 기록', (u) => u.flagCount || 0],
 ];
+// 분포 막대: 값 구간별 인원. 전투력은 자릿수 차이가 커서 로그 눈금으로 묶음
+function bars(title, vals, labelOf, bucketOf, nb) {
+  const cnt = new Array(nb).fill(0); for (const v of vals) cnt[Math.max(0, Math.min(nb - 1, bucketOf(v)))]++;
+  const mx = Math.max(1, ...cnt), box = document.createElement('div'); box.className = 'card';
+  box.appendChild(document.createTextNode(title + ` (${vals.length}명)`));
+  cnt.forEach((n, i) => { const r = document.createElement('div'); r.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;margin-top:3px';
+    const l = document.createElement('span'); l.style.cssText = 'width:110px;color:#9aa4b8'; l.textContent = labelOf(i);
+    const b = document.createElement('span'); b.style.cssText = `display:inline-block;height:12px;background:#ffb53d;border-radius:3px;width:${Math.round(n / mx * 260)}px`;
+    const c = document.createElement('span'); c.textContent = n; r.append(l, b, c); box.appendChild(r); });
+  return box;
+}
+function drawDist() {
+  const box = $('dist'); box.textContent = '';
+  const act = USERS.filter((u) => u.level != null);
+  if (act.length < 2) { box.textContent = '분포를 보려면 이용자가 2명 이상 필요해요.'; return; }
+  box.appendChild(bars('레벨', act.map((u) => u.level), (i) => `Lv.${i * 10 + 1}~${i * 10 + 10}`, (v) => Math.floor((v - 1) / 10), 10));
+  const pw = act.map((u) => u.power).filter((v) => v != null && v > 0), lg = (v) => Math.log10(Math.max(1, v));
+  if (pw.length) { const lo = Math.floor(Math.min(...pw.map(lg))), hi = Math.max(lo + 1, Math.ceil(Math.max(...pw.map(lg)) + 0.0001)), n = (hi - lo) * 2;
+    box.appendChild(bars('전투력', pw, (i) => { const a = lo + i / 2; return `10^${a.toFixed(1)}~`; }, (v) => Math.floor((lg(v) - lo) * 2), n)); }
+  box.appendChild(bars('최고 진행 지역', act.map((u) => u.bestRegion || 1), (i) => `${i + 1}지역`, (v) => v - 1, 10));
+  const ha = act.filter((u) => u.hardRegion); if (ha.length) box.appendChild(bars('어려움 진행', ha.map((u) => u.hardRegion), (i) => `어려움 ${i + 1}지역`, (v) => v - 1, 10));
+}
 function drawUsers() {
   const box = $('users'); box.textContent = '';
   const rows = USERS.slice().sort((a, b) => { const x = a[sortKey] ?? -1, y = b[sortKey] ?? -1; return (x > y ? 1 : x < y ? -1 : 0) * sortDir; });
@@ -68,7 +91,7 @@ async function load() {
     if (!res.ok) throw new Error(d.message || '불러오지 못했어요.');
     try { sessionStorage.setItem('adminKey', key); } catch (e) {}
     $('stats').textContent = `가입 ${d.stats.accounts}명 · 최근 24시간 접속 ${d.stats.active_day}명`;
-    USERS = d.users || []; drawUsers();
+    USERS = d.users || []; drawUsers(); drawDist();
     $('fb').textContent = ''; $('flags').textContent = '';
     if (!d.feedback.length) $('fb').textContent = '아직 받은 의견이 없어요.';
     for (const f of d.feedback) card($('fb'), `${f.nickname} · ${fmt(f.at)}${f.context ? ' · ' + f.context : ''}`, f.body, { cls: f.category, text: CAT[f.category] || f.category });
