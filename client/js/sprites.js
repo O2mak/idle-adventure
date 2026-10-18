@@ -237,7 +237,7 @@ function characterSprite(save, expr) {
   return _get(key, () => {
     const s = _mk(32 * HK, 32 * HK);
     s.g.drawImage(base, 0, 0);
-    for (const sl of parts) s.g.drawImage(sl === 'armor' ? drawArmorHi(eq[sl]) : sl === 'ring' ? drawRingHi(eq[sl]) : drawHatHi(eq[sl]), 0, 0);
+    for (const sl of parts) s.g.drawImage(sl === 'armor' ? drawArmorHi(eq[sl]) : sl === 'ring' ? drawRingHi(eq[sl]) : drawHatHi(eq[sl]), 0, HAT_DY);
     return s.c;
   });
 }
