@@ -138,7 +138,7 @@ class Renderer {
         g.fillRect(hr(x + (hero ? HERO.hand[0] + 12.5 : 36.5) + Math.cos(a) * 5), hr(y + (hero ? HERO.hand[1] - 15.5 : 10.5) + Math.sin(a) * 5), 1, 1);
       }
     }
-    this.bar(px - 12, hero ? y + 4 : y - 4, 24, rt.hp / rt.d.hp, '#4ee06a');
+    this.bar(px - 12, hero ? y - 1 : y - 4, 24, rt.hp / rt.d.hp, '#4ee06a');
   }
 
   drawEnemy(rt, e, region) {
