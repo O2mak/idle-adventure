@@ -626,6 +626,15 @@ function monsterKind(region, boss, variant) {
 // 지역 번호 → 일반 몬스터 그림 파일들(섞여 나옴), 보스 그림 파일, 배경 그림 파일. 파일이 없거나 아직 불러오는 중이면 위의 코드 그림을 씀
 const ART_SET = {
   1: { normal: ['img/mon_1_0.png', 'img/mon_1_1.png'], boss: 'img/mon_1_boss.png', bg: 'img/bg_1.png' },
+  2: { boss: 'img/mon_2_boss.png', bg: 'img/bg_2.png' },
+  3: { boss: 'img/mon_3_boss.png', bg: 'img/bg_3.png' },
+  4: { boss: 'img/mon_4_boss.png', bg: 'img/bg_4.png' },
+  5: { bg: 'img/bg_5.png' },
+  6: { bg: 'img/bg_6.png' },
+  7: { bg: 'img/bg_7.png' },
+  8: { bg: 'img/bg_8.png' },
+  9: { bg: 'img/bg_9.png' },
+  10: { bg: 'img/bg_10.png' },
 };
 const _art = {};
 // 그림 파일을 불러와서 준비되면 그림을 돌려줌 (발 아래 투명한 여백은 잘라서 발이 땅에 닿게 함). 아직이면 null
@@ -649,6 +658,7 @@ function artImage(url) {
 function artMonster(region, boss, variant) {
   const set = ART_SET[region];
   if (!set) return null;
-  return artImage(boss ? set.boss : set.normal[(variant | 0) % set.normal.length]);
+  const file = boss ? set.boss : (set.normal && set.normal[(variant | 0) % set.normal.length]);
+  return file ? artImage(file) : null;   // 일반 몬스터나 보스 그림이 없는 지역은 코드 그림을 씀
 }
 function artBackground(region) { const set = ART_SET[region]; return set && set.bg ? artImage(set.bg) : null; }

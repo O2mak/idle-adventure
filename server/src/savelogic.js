@@ -98,7 +98,8 @@ export function validateSave(old, s, elapsedSec, now = Date.now()) {
   if (!s.best || !isNum(s.best.region) || !isNum(s.best.round) || s.best.region > regions) fatal.push('최고 기록 값이 올바르지 않아요');
   // 어려움: 보통 마지막 지역을 클리어해야 열리고, 최고 기록은 한 번에 지역 하나 넘게 오를 수 없음
   const hb = s.hardBest;
-  if (typeof s.hard !== 'boolean' || !hb || !Number.isInteger(hb.region) || !Number.isInteger(hb.round) || hb.region < 1 || hb.region > regions || hb.round < 1 || hb.round > CFG.roundsPerRegion) fatal.push('어려움 기록이 올바르지 않아요');
+  if (s.hard === undefined && hb === undefined) { /* 어려움이 생기기 전 버전에서 온 저장: 그대로 통과 */ }
+  else if (typeof s.hard !== 'boolean' || !hb || !Number.isInteger(hb.region) || !Number.isInteger(hb.round) || hb.region < 1 || hb.region > regions || hb.round < 1 || hb.round > CFG.roundsPerRegion) fatal.push('어려움 기록이 올바르지 않아요');
   else {
     const opened = Array.isArray(s.clearedRegions) && s.clearedRegions.includes(regions);
     if (!opened && (s.hard || hb.region > 1 || hb.round > 1)) fatal.push('어려움은 보통 마지막 지역을 클리어해야 열려요');
