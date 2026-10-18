@@ -202,11 +202,12 @@ const CFG = {
       { name: '엑스칼리버', desc: '왕의 검. 보스에게 주는 피해 +20%', trait: { bossDmg: 0.2 } },
       { name: '청룡언월도', desc: '청룡의 기세. 스킬 쿨타임 -15%', trait: { cdr: 0.15 } },
       { name: '쿠사나기의 검', desc: '풀을 베는 신검. 기본 공격 때 15% 확률로 한 번 더 벱니다(피해 60%)', trait: { procChance: 0.15, procMul: 0.6 } },
+      { name: '뚜언띠엔', desc: '황금 거북의 검. 최대 체력 +15%', trait: { hpMul: 1.15 } },
     ],
     ranged: [
       { name: '주몽의 활', desc: '백발백중. 기본 공격 때 15% 확률로 화살을 한 발 더 쏩니다(피해 60%)', trait: { procChance: 0.15, procMul: 0.6 } },
-      { name: '아르테미스의 달궁', desc: '달빛 사냥. 골드 획득량 +10%', trait: { goldMul: 0.1 } },
-      { name: '라의 태양궁', desc: '태양신의 활. 보스에게 주는 피해 +20%', trait: { bossDmg: 0.2 } },
+      { name: '로빈 후드의 장궁', desc: '부자의 금화를 털던 활. 골드 획득량 +10%', trait: { goldMul: 0.1 } },
+      { name: '윌리엄 텔의 석궁', desc: '사과를 꿰뚫는 정밀함. 보스에게 주는 피해 +20%', trait: { bossDmg: 0.2 } },
     ],
     mage: [
       { name: '메를린의 지팡이', desc: '대마법사의 지팡이. 스킬 쿨타임 -15%', trait: { cdr: 0.15 } },

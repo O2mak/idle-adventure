@@ -65,7 +65,7 @@ function newSave(animal, name, cls) {
   const sv = {
     v: 2, animal: animal || 'dog', name: name || '모험가',
     gold: 0, level: 1, exp: 0, kills: 0, playTime: 0, today: { date: dayKey(), sec: 0 },
-    lvUnit: CFG.lvUnit, autoStat: 1, gearPct: 1, nameV: 1, animalLocked: true, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
+    lvUnit: CFG.lvUnit, autoStat: 1, gearPct: 1, nameV: 2, animalLocked: true, region: 1, round: 1, lock: false, lockFix: 1,   // lock=라운드 고정(직접 켠 경우만). lockFix: 예전 버전이 자동으로 켜 둔 고정을 한 번 풀었다는 표시
     best: { region: 1, round: 1 },
     clearedRegions: [], permPoints: 0, pendingPoints: 0,   // permPoints=지금 쓸 수 있는 포인트, pendingPoints=이번 시즌에 모은 포인트(다음 시즌에 사용 가능)
     perm: { atk: 0, hp: 0, mag: 0, gold: 0, drop: 0, exp: 0 }, titles: [],
@@ -97,9 +97,9 @@ function mergeSave(raw) {
     for (const it of out.inv.concat(CFG.slots.map((sl) => out.equip[sl]).filter(Boolean))) it.opts = makeItem({ nextUid: 0 }, it.slot, it.grade, it.region, it.cls).opts;
     out.gearPct = 1;
   }
-  if (!raw.nameV) {   // 장비 이름 체계가 바뀌기 전의 저장: 이름을 새 방식으로 다시 붙임
+  if ((raw.nameV | 0) < 2) {   // 장비 이름 체계가 바뀌기 전의 저장: 이름을 새 방식으로 다시 붙임
     for (const it of out.inv.concat(CFG.slots.map((sl) => out.equip[sl]).filter(Boolean))) it.name = itemName(it.slot, it.grade, it.cls, it.uid);
-    out.nameV = 1;
+    out.nameV = 2;
   }
   if (!(out.invCap >= CFG.inv.start)) out.invCap = CFG.inv.start;   // 기본 보관함이 늘어난 경우 옛 저장도 맞춰 줌
   if (!raw.lvUnit) {   // 성장 레벨을 묶음 단위로 바꾸기 전 저장 데이터: 레벨을 묶음으로 줄이고, 남는 레벨의 비용은 골드로 돌려줌
