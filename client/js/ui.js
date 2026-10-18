@@ -466,7 +466,14 @@ function panelSkills() {
 }
 
 const _monUrl = {};
-function monUrl(r) { return _monUrl[r] || (_monUrl[r] = monsterSprite(r, false).toDataURL()); }
+function monUrl(r) {
+  const s = monsterSprite(r, false), key = r + (s._isArt ? 'a' : s.src ? 'f' : 'c');
+  if (_monUrl[key] !== undefined) return _monUrl[key];
+  let url = '';
+  if (s.src) url = s.src;   // PixelLab 그림 (파일 그대로)
+  else if (s.toDataURL) { try { url = s.toDataURL(); } catch (e) { url = ''; } }   // 읽기가 막히면 빈 그림
+  return (_monUrl[key] = url);
+}
 
 // 스테이지: 챕터(지역)를 하나씩 골라서 보는 방식
 function panelStage() {

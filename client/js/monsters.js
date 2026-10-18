@@ -1,4 +1,4 @@
-﻿// 지역별 몬스터 그림 (코드로 그린 도트). 나라마다 전통 요괴/괴물 일반 몬스터 2종 + 보스 1종.
+// 지역별 몬스터 그림 (코드로 그린 도트). 나라마다 전통 요괴/괴물 일반 몬스터 2종 + 보스 1종.
 // 모든 그림은 64 x 60 칸 좌표로 그리고, 일반은 k=1(64x60), 보스는 k=2(128x120)로 찍힘 (보스는 소수 좌표로 더 세밀하게 그려짐)
 // 모양은 각 나라 민담 속 요괴의 대표적인 특징(뿔, 등딱지, 부적, 후드 등)을 도트로 새로 그린 것
 const MONSTER_DRAW = {};
@@ -621,3 +621,34 @@ function monsterKind(region, boss, variant) {
   if (!set) return null;
   return boss ? set.boss : set.normal[(variant | 0) % set.normal.length];
 }
+
+// ---------- PixelLab으로 만든 그림 (있으면 코드로 그린 그림 대신 사용) ----------
+// 지역 번호 → 일반 몬스터 그림 파일들(섞여 나옴), 보스 그림 파일, 배경 그림 파일. 파일이 없거나 아직 불러오는 중이면 위의 코드 그림을 씀
+const ART_SET = {
+  1: { normal: ['img/mon_1_0.png', 'img/mon_1_1.png'], boss: 'img/mon_1_boss.png', bg: 'img/bg_1.png' },
+};
+const _art = {};
+// 그림 파일을 불러와서 준비되면 그림을 돌려줌 (발 아래 투명한 여백은 잘라서 발이 땅에 닿게 함). 아직이면 null
+function artImage(url) {
+  let a = _art[url];
+  if (!a) {
+    a = _art[url] = { img: new Image(), ready: false, out: null };
+    a.img.onload = () => {
+      a.ready = true; a.out = a.img;
+      try {   // 아래쪽 투명 여백 자르기 (파일을 직접 열었을 때처럼 읽기가 막히면 그대로 사용)
+        const c = _mk(a.img.width, a.img.height); c.g.drawImage(a.img, 0, 0);
+        const d = c.g.getImageData(0, 0, c.w, c.h).data; let last = -1;
+        for (let y = c.h - 1; y >= 0 && last < 0; y--) for (let x = 0; x < c.w; x++) if (d[(y * c.w + x) * 4 + 3] > 20) { last = y; break; }
+        if (last >= 0 && last < c.h - 1) { const o = _mk(c.w, last + 1); o.g.drawImage(a.img, 0, 0); a.out = o.c; }
+      } catch (e) { /* 그대로 사용 */ }
+    };
+    if (typeof Image !== 'undefined') a.img.src = url;
+  }
+  return a.ready ? a.out : null;
+}
+function artMonster(region, boss, variant) {
+  const set = ART_SET[region];
+  if (!set) return null;
+  return artImage(boss ? set.boss : set.normal[(variant | 0) % set.normal.length]);
+}
+function artBackground(region) { const set = ART_SET[region]; return set && set.bg ? artImage(set.bg) : null; }

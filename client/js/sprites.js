@@ -243,6 +243,8 @@ function characterSprite(save, expr) {
   });
 }
 function monsterSprite(region, boss, variant) {
+  const art = typeof artMonster === 'function' && artMonster(region, boss, variant);   // PixelLab 그림이 준비되어 있으면 그것을 씀
+  if (art) return art;
   const rg = CFG.regions[region - 1], k = boss ? 2 : 1, kind = monsterKind(region, boss, variant);
   return _get(`mon_${region}_${kind}_${k}`, () => (kind && drawRegionMonster(kind, rg.color, k)) || drawSlime(rg.color, boss ? 4 : 2));
 }

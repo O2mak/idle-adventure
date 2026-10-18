@@ -67,15 +67,24 @@ class Renderer {
   draw(rt) {
     this.g.setTransform(HK, 0, 0, HK, 0, 0); this.g.imageSmoothingEnabled = false;
     const g = this.g, s = rt.save, sr = stageRegion(rt), rg = CFG.regions[sr - 1], L = this.layers(sr), gy = this.V.ground;
-    const grad = g.createLinearGradient(0, 0, 0, gy);
-    grad.addColorStop(0, rg.sky[0]); grad.addColorStop(1, rg.sky[1]);
-    g.fillStyle = grad; g.fillRect(0, 0, this.W, gy);
-    const sc = rt.scroll;
-    this.tile(L.clouds, rt.clock * 1.5 + sc * 0.05, 4);
-    this.tile(L.far, sc * 0.12, gy - 50);
-    this.tile(L.lm, sc * 0.2, gy - 96);
-    this.tile(L.near, sc * 0.3, gy - 36);
-    this.tile(L.trees, sc * 0.6, gy - 50);
+    const sc = rt.scroll, bgi = typeof artBackground === 'function' ? artBackground(sr) : null;
+    if (bgi) {   // PixelLab 배경 그림: 좌우를 뒤집어 이어 붙여서 끊김 없이 천천히 흐르게 함
+      const W = this.W, off = (((sc * 0.15) % (W * 2)) + W * 2) % (W * 2), base = Math.floor(off / W), within = off - base * W;
+      for (let i = 0; i < 2; i++) {
+        const x = i * W - within, flip = (base + i) % 2 === 1;
+        if (flip) { g.save(); g.translate(x + W, 0); g.scale(-1, 1); g.drawImage(bgi, 0, 0, W, gy); g.restore(); }
+        else g.drawImage(bgi, x, 0, W, gy);
+      }
+    } else {
+      const grad = g.createLinearGradient(0, 0, 0, gy);
+      grad.addColorStop(0, rg.sky[0]); grad.addColorStop(1, rg.sky[1]);
+      g.fillStyle = grad; g.fillRect(0, 0, this.W, gy);
+      this.tile(L.clouds, rt.clock * 1.5 + sc * 0.05, 4);
+      this.tile(L.far, sc * 0.12, gy - 50);
+      this.tile(L.lm, sc * 0.2, gy - 96);
+      this.tile(L.near, sc * 0.3, gy - 36);
+      this.tile(L.trees, sc * 0.6, gy - 50);
+    }
     this.tile(L.ground, sc, gy);
 
     for (const e of rt.enemies) this.drawEnemy(rt, e, sr);
