@@ -253,7 +253,7 @@ function drawWeaponHi(it) {
 // img/cat_east.png: 오른쪽 앞(몬스터 쪽, 비스듬한 3/4 각도)을 보고 서 있는 모습(96x96). 대기 동작은 이 그림의 머리와 가슴을 조금씩 움직여서 만듦.
 // img/cat_walk.png: PixelLab이 만든 같은 각도의 걷는 모습 6장(96x96씩 가로로 이어 붙임).
 // 장비는 겉모습에 그려지지 않고, 무기는 앞쪽 장갑 위치(HERO.hand)에 따로 얹음
-const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 91, hand: [24, 29], cur: [24, 29], walkHand: [[0.8, 0.5], [4, 2.5], [2.3, 1.8], [0.5, 0.5], [-2.5, 1.8], [-0.5, 0.5]] };
+const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 91, hand: [24, 29], cur: [24, 29], far: [32, 29.5], walkFar: [[32.5, 29.5], [31, 30], [31, 30], [31.8, 29.5], [35, 27], [34.5, 28]], walkHand: [[0.8, 0.5], [4, 2.5], [2.3, 1.8], [0.5, 0.5], [-2.5, 1.8], [-0.5, 0.5]] };
 function heroLoad() {
   if (HERO.east || typeof Image === 'undefined') return;
   let n = 0;
@@ -282,11 +282,12 @@ function heroIdleFrame(o) {
 // 지금 상황에 맞는 프레임 (그림이 아직 로딩 중이면 null)
 function heroSprite(t, moving, hurt) {
   if (!HERO.ready) return null;
-  HERO.cur = HERO.hand;
+  HERO.cur = HERO.hand; HERO.far = [32, 29.5];
   if (hurt) return HERO.hurt;
   if (!moving) return HERO.idle[Math.floor(t * 5) % 8];
   const i = Math.floor(t * 9) % 6, d = HERO.walkHand[i];   // 걷는 동안 주먹 위치가 프레임마다 달라서 무기도 따라감
   HERO.cur = [HERO.hand[0] + d[0], HERO.hand[1] + d[1]];
+  HERO.far = HERO.walkFar[i];
   return HERO.walk[i];
 }
 heroLoad();
