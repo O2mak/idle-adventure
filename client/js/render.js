@@ -113,9 +113,8 @@ class Renderer {
     const sh1 = sh0 * (1 + br), y = hr(hero ? foot + 1 - HERO.feet / HK - hop : foot - sh1 + 1 + bob - hop);   // 영웅 그림은 발 위치를 기준으로 맞춤
     g.fillStyle = 'rgba(0,0,0,0.22)';
     g.fillRect(px - 10, foot - 1, 20, 3);
-    g.drawImage(spr, x, y, sw0, sh1);
-    // 무기
     const sw = weaponSprite(s.equip.weapon);
+    const drawWeapon = () => {
     if (sw) {
       const cls = s.weaponType, hx = hero ? HERO.cur[0] : 24, hy = hero ? HERO.cur[1] : 22;   // 무기를 쥐는 손 위치
       g.save();
@@ -133,6 +132,12 @@ class Renderer {
       }
       g.restore();
     }
+    };
+    // 영웅의 활은 몸 반대쪽(먼 쪽) 손에 있어서 몸 뒤에 그려 몸과 겹치는 부분은 가려지게 함
+    const behind = hero && s.weaponType === 'ranged';
+    if (behind) drawWeapon();
+    g.drawImage(spr, x, y, sw0, sh1);
+    if (!behind) drawWeapon();
     // 걸을 때 발밑 먼지, 마법사는 스태프 구슬 주변 반짝임
     if (!engaged) {
       for (let i = 0; i < 3; i++) {
