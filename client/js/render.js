@@ -120,7 +120,8 @@ class Renderer {
       const cls = s.weaponType, hx = hero ? HERO.hand[0] : 24, hy = hero ? HERO.hand[1] : 22;   // 무기를 쥐는 손 위치
       g.save();
       if (cls === 'ranged') { // 활: 몸 앞에 세워 들고, 쏠 때 살짝 뒤로 당김
-        g.drawImage(sw, hr(x + hx + 3 - 13 - swing * 2), y + hy - 5 - 11, 24, 24);
+        const bx = hero ? x + 33 : x + hx + 3, by = hero ? y + 27 : y + hy - 5;   // 영웅은 앞으로 뻗은 손에서 활을 듦
+        g.drawImage(sw, hr(bx - 13 - swing * 2), by - 11, 24, 24);
       } else if (cls === 'mage') { // 스태프: 비스듬히 들고, 쓸 때 살짝 흔듦
         g.translate(x + hx - 2, y + hy + 3);
         g.rotate((hero ? 0.25 : -0.1) + swing * 0.5);
