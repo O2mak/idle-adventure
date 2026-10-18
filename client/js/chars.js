@@ -1,4 +1,4 @@
-﻿// 고해상도 캐릭터 그림: 강아지/치즈 고양이, 입는 장비, 손에 드는 무기.
+// 고해상도 캐릭터 그림: 강아지/치즈 고양이, 입는 장비, 손에 드는 무기.
 // 전투 화면은 256x144 칸이지만 캐릭터는 가로세로 2배 촘촘한 64x64로 그려서(HK=2) 더 자세한 도트를 표현함.
 // 화면에는 크기를 절반으로 줄여 그리므로 캔버스의 실제 픽셀과 1:1로 맞음.
 const HK = 2;
@@ -249,5 +249,48 @@ function drawWeaponHi(it) {
   return s.c;
 }
 
-
-
+// ---------- 고양이 영웅 (PixelLab으로 만든 그림 + 코드로 만든 움직임) ----------
+// img/cat.png(96x96, 무기를 쥔 손이 화면 오른쪽)를 부위별로 잘라 조금씩 움직여서 대기/걷기 프레임을 만듦.
+// 그림은 한 장이라 방어구(투구, 갑옷)가 그려져 있고, 무기는 오른손 위치(HERO.hand)에 따로 얹음
+const HERO = { img: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 92, hand: [32.5, 28] };
+function heroLoad() {
+  if (HERO.img || typeof Image === 'undefined') return;
+  const im = new Image();
+  im.onload = () => { HERO.ready = true; heroBuild(im); };
+  im.src = 'img/cat.png';
+  HERO.img = im;
+}
+function heroFrame(im, o) {
+  // o: dyHead, dxHead, dyTorso, dyChest, legL, legR (위로 들어올리는 칸 수), cape (망토 흔들림 크기), ph (위상)
+  const s = _mk(96, 96), g = s.g, sl = (sx, sy, sw, sh, dx, dy) => g.drawImage(im, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh);
+  sl(27, 74, 17, 22, 0, -(o.legL || 0));                       // 왼쪽 다리
+  sl(44, 74, 36, 22, 0, -(o.legR || 0));                       // 오른쪽 다리 (오른쪽 망토 끝자락 포함)
+  for (let y = 62; y < 96; y += 2) {                           // 왼쪽 망토: 줄마다 좌우로 흔들림
+    const k = (y - 60) / 36, dx = Math.round(Math.sin(o.ph * 1 + y * 0.18) * (o.cape || 0) * k);
+    g.drawImage(im, 12, y, 15, 2, 12 + dx, y, 15, 2);
+  }
+  sl(27, 46, 53, 31, 0, o.dyTorso || 0);                       // 몸통과 팔
+  sl(27, 46, 53, 12, 0, o.dyChest || 0);                       // 가슴 윗부분은 조금 더 움직임
+  sl(26, 16, 46, 38, o.dxHead || 0, o.dyHead || 0);            // 머리(투구 포함)
+  return s.c;
+}
+function heroBuild(im) {
+  HERO.base = heroFrame(im, { ph: 0 });
+  for (let f = 0; f < 8; f++) {                                // 대기: 숨 쉬듯 머리와 가슴이 오르내리고 망토가 살랑거림
+    const p = f / 8 * Math.PI * 2, b = (Math.sin(p) + 1) / 2;
+    HERO.idle.push(heroFrame(im, { dyHead: -(b > 0.3 ? 1 : 0) - (b > 0.85 ? 1 : 0), dyChest: b > 0.55 ? -1 : 0, cape: 1.6, ph: p }));
+  }
+  for (let f = 0; f < 8; f++) {                                // 걷기: 다리를 번갈아 들고 몸이 통통 튀며 앞으로 기울어짐
+    const p = f / 8 * Math.PI * 2, sn = Math.sin(p), bob = -Math.round(Math.abs(sn));
+    HERO.walk.push(heroFrame(im, { legL: Math.round(Math.max(0, sn) * 3), legR: Math.round(Math.max(0, -sn) * 3), dyTorso: bob, dyChest: bob, dyHead: bob - (Math.abs(Math.cos(p)) > 0.8 ? 0 : 0), dxHead: sn > 0.5 ? 1 : 0, cape: 3, ph: p * 1.5 }));
+  }
+  const h = _mk(96, 96); h.g.drawImage(HERO.base, 0, 0); h.g.globalCompositeOperation = 'source-atop'; h.g.fillStyle = 'rgba(255,60,60,0.5)'; h.g.fillRect(0, 0, 96, 96);
+  HERO.hurt = h.c;
+}
+// 지금 상황에 맞는 프레임 (그림이 아직 로딩 중이면 null)
+function heroSprite(t, moving, hurt) {
+  if (!HERO.ready) return null;
+  if (hurt) return HERO.hurt;
+  return moving ? HERO.walk[Math.floor(t * 12) % 8] : HERO.idle[Math.floor(t * 5) % 8];
+}
+heroLoad();

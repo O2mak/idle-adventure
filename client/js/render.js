@@ -92,31 +92,32 @@ class Renderer {
     const happy = t - rt.happyAt < 1.5;
     let eyes = 'open';
     if (hurt) eyes = 'hurt'; else if (happy) eyes = 'happy'; else if (t % 4 < 0.14) eyes = 'blink';
-    const spr = characterSprite(s, { eyes, mouth: swing > 0.3 || happy, tail: Math.floor(t * 3) % 2 });
     const engaged = rt.enemies.some((e) => e.x <= e.stop + 1);
-    const bob = Math.sin(t * 7) * (engaged ? 0.6 : 1.2);
+    const hero = s.animal === 'cat' ? heroSprite(t, !engaged, hurt) : null;   // 고양이는 움직이는 영웅 그림(PixelLab), 그림이 없으면 예전 도트
+    const spr = hero || characterSprite(s, { eyes, mouth: swing > 0.3 || happy, tail: Math.floor(t * 3) % 2 });
+    const bob = hero ? 0 : Math.sin(t * 7) * (engaged ? 0.6 : 1.2);
     const hop = happy ? Math.abs(Math.sin(t * 9)) * 6 : 0;
     const sw0 = spr.width / HK, sh0 = spr.height / HK, hr = (v) => Math.round(v * HK) / HK;  // 절반 칸 단위로 맞춤
     const x = hr(px - sw0 / 2 + swing * 4 - (hurt ? 2 : 0));
     // 숨쉬기: 전투 중 멈춰 서 있을 때 발을 기준으로 위아래가 살짝 늘었다 줄어듦
-    const br = engaged ? Math.sin(t * 2.6) * 0.03 : 0;
-    const sh1 = sh0 * (1 + br), y = hr(foot - sh1 + 1 + bob - hop);
+    const br = engaged && !hero ? Math.sin(t * 2.6) * 0.03 : 0;
+    const sh1 = sh0 * (1 + br), y = hr(hero ? foot + 1 - HERO.feet / HK - hop : foot - sh1 + 1 + bob - hop);   // 영웅 그림은 발 위치를 기준으로 맞춤
     g.fillStyle = 'rgba(0,0,0,0.22)';
     g.fillRect(px - 10, foot - 1, 20, 3);
     g.drawImage(spr, x, y, sw0, sh1);
     // 무기
     const sw = weaponSprite(s.equip.weapon);
     if (sw) {
-      const cls = s.weaponType;
+      const cls = s.weaponType, hx = hero ? HERO.hand[0] : 24, hy = hero ? HERO.hand[1] : 22;   // 무기를 쥐는 손 위치
       g.save();
       if (cls === 'ranged') { // 활: 몸 앞에 세워 들고, 쏠 때 살짝 뒤로 당김
-        g.drawImage(sw, hr(x + 27 - 13 - swing * 2), y + 16 - 11, 24, 24);
+        g.drawImage(sw, hr(x + hx + 3 - 13 - swing * 2), y + hy - 5 - 11, 24, 24);
       } else if (cls === 'mage') { // 스태프: 비스듬히 들고, 쓸 때 살짝 흔듦
-        g.translate(x + 22, y + 25);
+        g.translate(x + hx - 2, y + hy + 3);
         g.rotate(-0.1 + swing * 0.5);
         g.drawImage(sw, -4, -21, 24, 24);
       } else { // 칼
-        g.translate(x + 24, y + 22);
+        g.translate(x + hx, y + hy);
         g.rotate(-0.45 + swing * 1.5);
         g.drawImage(sw, -3, -21, 24, 24);
       }
@@ -134,10 +135,10 @@ class Renderer {
       for (let i = 0; i < 3; i++) {
         const a = t * 2 + i * 2.1, k = (Math.sin(t * 5 + i * 1.7) + 1) / 2;
         g.fillStyle = `rgba(255,248,170,${0.25 + 0.65 * k})`;
-        g.fillRect(hr(x + 36.5 + Math.cos(a) * 5), hr(y + 10.5 + Math.sin(a) * 5), 1, 1);
+        g.fillRect(hr(x + (hero ? HERO.hand[0] + 12.5 : 36.5) + Math.cos(a) * 5), hr(y + (hero ? HERO.hand[1] - 15.5 : 10.5) + Math.sin(a) * 5), 1, 1);
       }
     }
-    this.bar(px - 12, y - 4, 24, rt.hp / rt.d.hp, '#4ee06a');
+    this.bar(px - 12, hero ? y + 4 : y - 4, 24, rt.hp / rt.d.hp, '#4ee06a');
   }
 
   drawEnemy(rt, e, region) {
