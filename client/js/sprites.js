@@ -1,4 +1,4 @@
-﻿// 임시 픽셀 스프라이트 (코드로 그려서 만듭니다). 32x32 해상도의 귀여운 캐릭터.
+// 임시 픽셀 스프라이트 (코드로 그려서 만듭니다). 32x32 해상도의 귀여운 캐릭터.
 // 나중에 직접 그린 이미지로 교체할 수 있도록 "스프라이트 얻는 함수"만 밖에서 사용합니다.
 
 function _mk(w, h) {
@@ -87,6 +87,8 @@ function _gear(it) {
 
 // 무기 (손에 드는 그림이자 아이콘). it이 없으면 기본 검
 function drawWeapon(it) {
+  const lw = it && typeof legendOf === 'function' && legendOf(it);   // 전설 무기: 고유한 모양 (손에 드는 그림을 작게 줄여 아이콘으로 씀)
+  if (lw) { const ic = _mk(24, 24); ic.g.drawImage(drawLegendWeaponHi(lw.name), 0, 0, 24, 24); return ic.c; }
   const s = _mk(24, 24);
   const cls = it ? it.cls : 'melee', c = it ? _gear(it) : { main: _pal('#c9d1dc'), reg: '#e8b83a', trim: '#e8b83a', trimDark: '#b8861f' };
   if (cls === 'ranged') { // 활
@@ -214,7 +216,7 @@ function animalSprite(animal, expr) {
   const key = `${animal}_${e.eyes}_${e.mouth ? 1 : 0}_${e.tail ? 1 : 0}`;
   return _get(key, () => (animal === 'cat' ? drawCatHi(e) : drawDogHi(e)));
 }
-const _gk = (it) => `${it.cls}_${it.slot}_${it.region}_${it.grade}`;
+const _gk = (it) => `${it.cls}_${it.slot}_${it.region}_${it.grade}` + (it.slot === 'weapon' && it.grade === 4 && typeof legendOf === 'function' && legendOf(it) ? '_' + legendOf(it).name : '');
 
 // 손에 드는 무기 (없으면 null)
 function weaponSprite(it) { return it ? _get('wp_' + _gk(it), () => drawWeaponHi(it)) : null; }
