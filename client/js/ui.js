@@ -417,6 +417,17 @@ function panelEquip() {
   }
   h += '<h3>합성</h3>' + (mergeRows || '<p class="note">같은 부위·같은 등급 장비를 10개 모으면 한 단계 위 장비로 합칠 수 있어요. (강화는 사라지고, 전설은 합성으로 만들 수 없어요)</p>');
   if (mergeRows) h += `<div class="toolbar"><button class="chip" data-act="mergeall">가능한 합성 모두 진행</button></div>`;
+
+  // 전설 무기 도감: 아직 얻지 못한 무기도 이름과 특성을 미리 볼 수 있음 (지금 보유 중이면 표시)
+  const owned = new Set(s.inv.concat(CFG.slots.map((sl) => s.equip[sl]).filter(Boolean)).map(legendOf).filter(Boolean).map((l) => l.name));
+  h += `<h3>전설 무기 도감</h3><p class="note">지역 ${CFG.gradeUnlock[4]}부터 전설 장비가 나와요. 어떤 전설 무기가 나올지는 정해져 있지 않고, 얻어야 알 수 있어요.</p>`;
+  for (const cls of Object.keys(CFG.legendWeapons)) {
+    h += `<div class="note"><b>${esc(CFG.classInfo[cls].title)}</b>${cls === s.cls ? ' (내 직업)' : ''}</div>`;
+    for (const l of CFG.legendWeapons[cls]) {
+      const has = owned.has(l.name);
+      h += `<div class="row"${has ? '' : ' style="opacity:.7"'}><div class="rn">${esc(l.name)}${has ? ' <span class="badge">보유 중</span>' : ''}<small>${esc(l.desc)}</small></div></div>`;
+    }
+  }
   return h;
 }
 
