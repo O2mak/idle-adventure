@@ -114,11 +114,11 @@ class Renderer {
         g.drawImage(sw, hr(x + hx + 3 - 13 - swing * 2), y + hy - 5 - 11, 24, 24);
       } else if (cls === 'mage') { // 스태프: 비스듬히 들고, 쓸 때 살짝 흔듦
         g.translate(x + hx - 2, y + hy + 3);
-        g.rotate(-0.1 + swing * 0.5);
+        g.rotate((hero ? 0.25 : -0.1) + swing * 0.5);
         g.drawImage(sw, -4, -21, 24, 24);
       } else { // 칼
         g.translate(x + hx, y + hy);
-        g.rotate(-0.45 + swing * 1.5);
+        g.rotate((hero ? -0.05 : -0.45) + swing * 1.5);
         g.drawImage(sw, -3, -21, 24, 24);
       }
       g.restore();
