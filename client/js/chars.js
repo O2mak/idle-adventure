@@ -253,7 +253,7 @@ function drawWeaponHi(it) {
 // img/cat_east.png: 오른쪽 앞(몬스터 쪽, 비스듬한 3/4 각도)을 보고 서 있는 모습(96x96). 대기 동작은 이 그림의 머리와 가슴을 조금씩 움직여서 만듦.
 // img/cat_walk.png: PixelLab이 만든 같은 각도의 걷는 모습 6장(96x96씩 가로로 이어 붙임).
 // 장비는 겉모습에 그려지지 않고, 무기는 앞쪽 장갑 위치(HERO.hand)에 따로 얹음
-const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 91, hand: [32, 31] };
+const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 91, hand: [24, 29] };
 function heroLoad() {
   if (HERO.east || typeof Image === 'undefined') return;
   let n = 0;
