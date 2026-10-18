@@ -117,10 +117,10 @@ class Renderer {
     // 무기
     const sw = weaponSprite(s.equip.weapon);
     if (sw) {
-      const cls = s.weaponType, hx = hero ? HERO.hand[0] : 24, hy = hero ? HERO.hand[1] : 22;   // 무기를 쥐는 손 위치
+      const cls = s.weaponType, hx = hero ? HERO.cur[0] : 24, hy = hero ? HERO.cur[1] : 22;   // 무기를 쥐는 손 위치
       g.save();
       if (cls === 'ranged') { // 활: 몸 앞에 세워 들고, 쏠 때 살짝 뒤로 당김
-        const bx = hero ? x + 33 : x + hx + 3, by = hero ? y + 27 : y + hy - 5;   // 영웅은 앞으로 뻗은 손에서 활을 듦
+        const bx = hero ? x + hx + 13 : x + hx + 3, by = hero ? y + hy - 7 : y + hy - 5;   // 영웅은 앞으로 뻗은 손에서 활을 듦
         g.drawImage(sw, hr(bx - 13 - swing * 2), by - 11, 24, 24);
       } else if (cls === 'mage') { // 스태프: 비스듬히 들고, 쓸 때 살짝 흔듦
         g.translate(x + hx - 2, y + hy + 3);
@@ -145,7 +145,7 @@ class Renderer {
       for (let i = 0; i < 3; i++) {
         const a = t * 2 + i * 2.1, k = (Math.sin(t * 5 + i * 1.7) + 1) / 2;
         g.fillStyle = `rgba(255,248,170,${0.25 + 0.65 * k})`;
-        g.fillRect(hr(x + (hero ? HERO.hand[0] + 12.5 : 36.5) + Math.cos(a) * 5), hr(y + (hero ? HERO.hand[1] - 15.5 : 10.5) + Math.sin(a) * 5), 1, 1);
+        g.fillRect(hr(x + (hero ? HERO.cur[0] + 12.5 : 36.5) + Math.cos(a) * 5), hr(y + (hero ? HERO.cur[1] - 15.5 : 10.5) + Math.sin(a) * 5), 1, 1);
       }
     }
     this.bar(px - 12, hero ? y - 1 : y - 4, 24, rt.hp / rt.d.hp, '#4ee06a');
