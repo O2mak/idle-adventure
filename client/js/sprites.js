@@ -241,9 +241,9 @@ function characterSprite(save, expr) {
     return s.c;
   });
 }
-function monsterSprite(region, boss) {
-  const rg = CFG.regions[region - 1], k = boss ? 4 : 2;
-  return _get(`mon_${region}_${k}`, () => drawRegionMonster(rg.sprite, rg.color, k) || (rg.sprite === 'mushroom' ? drawMushroom(rg.color, k) : drawSlime(rg.color, k)));
+function monsterSprite(region, boss, variant) {
+  const rg = CFG.regions[region - 1], k = boss ? 2 : 1, kind = monsterKind(region, boss, variant);
+  return _get(`mon_${region}_${kind}_${k}`, () => (kind && drawRegionMonster(kind, rg.color, k)) || drawSlime(rg.color, boss ? 4 : 2));
 }
 
 

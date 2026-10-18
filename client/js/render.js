@@ -1,4 +1,4 @@
-﻿// 캔버스 렌더링 (논리 해상도 256x144, CSS로 정수배 확대). 숫자 효과는 별도의 고해상도 캔버스에 그림.
+// 캔버스 렌더링 (논리 해상도 256x144, CSS로 정수배 확대). 숫자 효과는 별도의 고해상도 캔버스에 그림.
 class Renderer {
   constructor(canvas, fxCanvas) {
     this.c = canvas; this.fc = fxCanvas; this.g = canvas.getContext('2d');
@@ -142,7 +142,7 @@ class Renderer {
 
   drawEnemy(rt, e, region) {
     const g = this.g, t = rt.clock, foot = this.V.foot, px = this.V.playerX;
-    const spr = monsterSprite(region, e.boss);
+    const spr = monsterSprite(region, e.boss, Math.floor(e.seed * 7));
     const hop = Math.abs(Math.sin(t * 6 + e.seed)) * (e.x > e.stop + 1 ? 4 : 1);
     const shake = (t - e.flash) < 0.1 ? (Math.round(Math.random() * 3) - 1) : 0;
     const cx = px + e.x, w = spr.width / HK, h = spr.height / HK, hr = (v) => Math.round(v * HK) / HK;
@@ -151,11 +151,7 @@ class Renderer {
     g.fillRect(Math.round(cx - w / 3), foot - 1, Math.round(w * 0.66), 3);
     g.drawImage(spr, x, y, w, h);
     if (e.boss) {
-      const cxm = Math.round(cx), top = y + 15;
-      g.fillStyle = '#7a5a10'; g.fillRect(cxm - 11, top - 11, 22, 11);
-      g.fillStyle = '#ffd23a'; g.fillRect(cxm - 10, top - 6, 20, 5);
-      for (const dx of [-10, -2, 6]) { g.fillRect(cxm + dx, top - 10, 4, 5); }
-      g.fillStyle = '#ff5a5a'; g.fillRect(cxm - 1, top - 5, 2, 2);
+      const cxm = Math.round(cx);   // 보스는 몸집과 모양이 달라서 왕관 장식은 따로 그리지 않음
       if (rt.weak) {
         const cy = y + h * 0.5, r = 9 + Math.sin(t * 14) * 1.5;
         g.strokeStyle = '#ff4040'; g.lineWidth = 1.5;
