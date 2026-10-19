@@ -127,7 +127,7 @@ class Renderer {
         g.drawImage(sw, -4, -21, 24, 24);
       } else { // 칼
         g.translate(x + hx, y + hy);
-        g.rotate((hero ? -0.05 : -0.45) + swing * 1.5);
+        g.rotate((hero ? 0.45 : -0.45) + swing * 1.5);
         g.drawImage(sw, -3, -21, 24, 24);
       }
       g.restore();

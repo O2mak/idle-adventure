@@ -253,7 +253,7 @@ function drawWeaponHi(it) {
 // img/cat_east.png: 오른쪽 앞(몬스터 쪽, 비스듬한 3/4 각도)을 보고 서 있는 모습(96x96). 대기 동작은 이 그림의 머리와 가슴을 조금씩 움직여서 만듦.
 // img/cat_walk.png: PixelLab이 만든 같은 각도의 걷는 모습 6장(96x96씩 가로로 이어 붙임).
 // 장비는 겉모습에 그려지지 않고, 무기는 앞쪽 장갑 위치(HERO.hand)에 따로 얹음
-const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 91, hand: [24, 29], cur: [24, 29], far: [32, 29.5], walkFar: [[32.5, 29.5], [31, 30], [31, 30], [31.8, 29.5], [35, 27], [34.5, 28]], walkHand: [[0.8, 0.5], [4, 2.5], [2.3, 1.8], [0.5, 0.5], [-2.5, 1.8], [-0.5, 0.5]] };
+const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 85, hand: [21, 32.5], cur: [21, 32.5], far: [33, 32.5], walkFar: [[33, 32.5], [33, 32.5], [33, 32.5], [33, 32.5], [33, 32.5], [33, 32.5]], walkHand: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]] };
 function heroLoad() {
   if (HERO.east || typeof Image === 'undefined') return;
   let n = 0;
@@ -264,10 +264,10 @@ function heroLoad() {
 function heroIdleFrame(o) {
   // o: dyHead, dyChest (위로 올리는 칸 수)
   const im = HERO.east, s = _mk(96, 96), g = s.g, sl = (sx, sy, sw, sh, dx, dy) => g.drawImage(im, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh);
-  sl(30, 70, 40, 26, 0, 0);                                    // 다리
-  sl(28, 34, 44, 40, 0, 0);                                    // 몸통과 팔
-  sl(28, 34, 44, 16, 0, o.dyChest || 0);                       // 가슴과 스카프
-  sl(28, 2, 42, 36, 0, o.dyHead || 0);                         // 머리
+  sl(20, 74, 56, 12, 0, 0);                                    // 다리
+  sl(20, 48, 56, 28, 0, 0);                                    // 몸통과 팔, 꼬리
+  sl(20, 48, 56, 10, 0, o.dyChest || 0);                       // 가슴
+  sl(20, 8, 56, 42, 0, o.dyHead || 0);                         // 머리와 스카프
   return s.c;
 }function heroBuild() {
   HERO.base = heroIdleFrame({ ph: 0 });
@@ -278,11 +278,12 @@ function heroIdleFrame(o) {
   for (let f = 0; f < 6; f++) { const c = _mk(96, 96); c.g.drawImage(HERO.walkImg, f * 96, 0, 96, 96, 0, 0, 96, 96); HERO.walk.push(c.c); }
   const h = _mk(96, 96); h.g.drawImage(HERO.base, 0, 0); h.g.globalCompositeOperation = 'source-atop'; h.g.fillStyle = 'rgba(255,60,60,0.5)'; h.g.fillRect(0, 0, 96, 96);
   HERO.hurt = h.c;
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('herochange'));   // 시작 화면 미리보기를 새 그림으로 다시 그리게 함
 }
 // 지금 상황에 맞는 프레임 (그림이 아직 로딩 중이면 null)
 function heroSprite(t, moving, hurt) {
   if (!HERO.ready) return null;
-  HERO.cur = HERO.hand; HERO.far = [32, 29.5];
+  HERO.cur = HERO.hand; HERO.far = [33, 32.5];
   if (hurt) return HERO.hurt;
   if (!moving) return HERO.idle[Math.floor(t * 5) % 8];
   const i = Math.floor(t * 9) % 6, d = HERO.walkHand[i];   // 걷는 동안 주먹 위치가 프레임마다 달라서 무기도 따라감

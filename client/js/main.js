@@ -80,10 +80,12 @@
   // ----- 화면 미리보기 -----
   function drawPreviews() {
     document.querySelectorAll('canvas[data-sprite]').forEach((c) => {
-      const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+      const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.clearRect(0, 0, 96, 96);
       g.drawImage(animalSprite(c.dataset.sprite, { eyes: 'open', mouth: false, tail: 0 }), 0, 0, 96, 96);
     });
   }
+
+  window.addEventListener('herochange', drawPreviews);
 
   // ----- 시험(오프라인) 시작 화면 -----
   function showStart() {
