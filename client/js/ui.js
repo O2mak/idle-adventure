@@ -810,7 +810,13 @@ function uiUpdate() {
   document.documentElement.classList.toggle('wide', wide);
   const html = wide ? colsHtml() : ({ growth: panelGrowth, equip: panelEquip, skills: panelSkills, stage: panelStage, endless: panelEndless, perm: panelPerm, set: panelSettings })[UI.tab]();
   const typing = document.activeElement && document.activeElement.id === 'fbText';   // 의견을 쓰는 중에는 화면을 다시 그리지 않음
-  if (html !== UI.lastHtml && !typing) { UI.lastHtml = html; $('tabBody').innerHTML = html; }
+  if (html !== UI.lastHtml && !typing) {
+    // 새 아이템을 얻는 등으로 화면이 다시 그려져도 보던 스크롤 위치를 유지 (탭이 그대로일 때만)
+    const body = $('tabBody'), keep = UI.scrollKey === UI.tab + wide;
+    const tops = keep ? [body.scrollTop, ...[...body.querySelectorAll('.cols > section, .rankbox')].map((n) => n.scrollTop)] : null;
+    UI.lastHtml = html; body.innerHTML = html; UI.scrollKey = UI.tab + wide;
+    if (tops) { body.scrollTop = tops[0]; body.querySelectorAll('.cols > section, .rankbox').forEach((n, i) => { n.scrollTop = tops[i + 1] || 0; }); }
+  }
 
   // 로그
   const logHtml = rt.msgs.slice(-6).map((m) => `<div class="${m.cls}">${esc(m.text)}</div>`).join('');
