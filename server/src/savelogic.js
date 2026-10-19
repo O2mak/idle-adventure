@@ -148,7 +148,8 @@ export function validateSave(old, s, elapsedSec, now = Date.now()) {
       if (!s.ads || !Number.isInteger(s.ads.count) || s.ads.count < 0 || s.ads.count > A.perDay) fatal.push('광고 횟수 값이 올바르지 않아요');
       const adsUsed = Math.max(0, adCount - (old.ads && old.ads.date === today ? old.ads.count : 0));
       let inc = 0;
-      for (const k of Object.keys(R.kinds)) inc += Math.max(0, s.buff[k].sec - Math.max(0, (old.buff[k] ? old.buff[k].sec : 0) - elapsedSec));
+      // 보너스 시간은 화면이 켜져 있을 때만 줄어들어서(탭이 뒤에 있거나 PC가 잠들면 멈춤), 흐른 실제 시간만큼 줄었다고 가정하지 않음
+      for (const k of Object.keys(R.kinds)) inc += Math.max(0, s.buff[k].sec - (old.buff[k] ? old.buff[k].sec : 0));
       if (inc > spins * maxSec + adsUsed * A.sec + 30) fatal.push('보너스 시간이 비정상적으로 늘었어요');
     }
     // 무한 모드 최고 층: 줄어들 수 없고, 칭호는 서버만 줌, 층이 늘었을 때는 엄격하게 검증
