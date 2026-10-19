@@ -212,7 +212,7 @@ function _get(key, make) { return _cache[key] || (_cache[key] = make()); }
 
 // expr: { eyes:'open'|'blink'|'happy'|'hurt', mouth:bool, tail:0|1 }
 function animalSprite(animal, expr) {
-  if (animal === 'cat' && typeof HERO !== 'undefined' && HERO.ready) return HERO.base;   // 고양이는 영웅 그림 (선택 화면 등에서도 같은 그림)
+  if (typeof HEROES !== 'undefined' && HEROES[animal] && HEROES[animal].ready) return HEROES[animal].base;   // 고양이는 영웅 그림 (선택 화면 등에서도 같은 그림)
   const e = expr || { eyes: 'open', mouth: false, tail: 0 };
   const key = `${animal}_${e.eyes}_${e.mouth ? 1 : 0}_${e.tail ? 1 : 0}`;
   return _get(key, () => (animal === 'cat' ? drawCatHi(e) : drawDogHi(e)));

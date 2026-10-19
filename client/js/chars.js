@@ -249,41 +249,54 @@ function drawWeaponHi(it) {
   return s.c;
 }
 
-// ---------- 고양이 영웅 (PixelLab으로 만든 그림) ----------
-// img/cat_east.png: 오른쪽 앞(몬스터 쪽, 비스듬한 3/4 각도)을 보고 서 있는 모습(96x96). 대기 동작은 이 그림의 머리와 가슴을 조금씩 움직여서 만듦.
-// img/cat_walk.png: PixelLab이 만든 같은 각도의 걷는 모습 6장(96x96씩 가로로 이어 붙임).
-// 장비는 겉모습에 그려지지 않고, 무기는 앞쪽 장갑 위치(HERO.hand)에 따로 얹음
-const HERO = { east: null, walkImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 85, hand: [21, 32.5], cur: [21, 32.5], far: [33, 32.5], walkFar: [[33, 32.5], [33, 32.5], [33, 32.5], [33, 32.5], [33, 32.5], [33, 32.5]], walkHand: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]] };
+// ---------- 영웅 그림 (고양이: PixelLab, 강아지: 격자에 한 칸씩 찍어서 그림) ----------
+// 동물마다 96x96 그림: east=서 있는 모습, walk=걷는 모습 6장(가로로 이어 붙임), idle=대기 8장(없으면 east를 잘라서 만듦)
+// 장비는 겉모습에 그려지지 않고, 무기는 앞쪽 손 위치(hand/far)에 따로 얹음. HERO는 지금 그리는 동물의 설정을 가리킴
+const _flat = (v) => [v, v, v, v, v, v];
+const HEROES = {
+  cat: { name: 'cat', east: null, walkImg: null, idleImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 85, hand: [21, 32.5], far: [33, 32.5], walkFar: _flat([33, 32.5]), walkHand: _flat([0, 0]), cur: [21, 32.5], staff: 0.25 },
+  dog: { name: 'dog', east: null, walkImg: null, idleImg: null, ready: false, idle: [], walk: [], hurt: null, base: null, feet: 85, hand: [17, 33], far: [31, 33], walkFar: _flat([31, 33]), walkHand: [[0, 0.7], [0, 0.7], [0, 0], [0, -0.7], [0, -0.7], [0, 0]], cur: [17, 33], staff: 0.75 },
+};
+let HERO = HEROES.cat;
 function heroLoad() {
-  if (HERO.east || typeof Image === 'undefined') return;
-  let n = 0;
-  const done = () => { if (++n === 2) { HERO.ready = true; heroBuild(); } };
-  HERO.east = new Image(); HERO.east.onload = done; HERO.east.src = 'img/cat_east.png';
-  HERO.walkImg = new Image(); HERO.walkImg.onload = done; HERO.walkImg.src = 'img/cat_walk.png';
+  if (typeof Image === 'undefined') return;
+  for (const k of Object.keys(HEROES)) {
+    const H = HEROES[k]; if (H.east) continue;
+    const files = [['east', 'img/' + k + '_east.png'], ['walkImg', 'img/' + k + '_walk.png']].concat(k === 'dog' ? [['idleImg', 'img/dog_idle.png']] : []);
+    let n = 0;
+    const done = () => { if (++n === files.length) { H.ready = true; heroBuild(H); } };
+    for (const [key, src] of files) { H[key] = new Image(); H[key].onload = done; H[key].src = src; }
+  }
 }
-function heroIdleFrame(o) {
-  // o: dyHead, dyChest (위로 올리는 칸 수)
-  const im = HERO.east, s = _mk(96, 96), g = s.g, sl = (sx, sy, sw, sh, dx, dy) => g.drawImage(im, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh);
+function heroIdleFrame(H, o) {
+  // o: dyHead, dyChest (위로 올리는 칸 수). 고양이 대기 동작은 그림의 머리와 가슴을 조금씩 움직여서 만듦
+  const im = H.east, s = _mk(96, 96), g = s.g, sl = (sx, sy, sw, sh, dx, dy) => g.drawImage(im, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh);
   sl(20, 74, 56, 12, 0, 0);                                    // 다리
   sl(20, 48, 56, 28, 0, 0);                                    // 몸통과 팔, 꼬리
   sl(20, 48, 56, 10, 0, o.dyChest || 0);                       // 가슴
   sl(20, 8, 56, 42, 0, o.dyHead || 0);                         // 머리와 스카프
   return s.c;
-}function heroBuild() {
-  HERO.base = heroIdleFrame({ ph: 0 });
-  for (let f = 0; f < 8; f++) {                                // 대기: 숨 쉬듯 머리와 가슴이 오르내리고 꼬리가 살랑거림
-    const p = f / 8 * Math.PI * 2, b = (Math.sin(p) + 1) / 2;
-    HERO.idle.push(heroIdleFrame({ dyHead: -(b > 0.3 ? 1 : 0) - (b > 0.85 ? 1 : 0), dyChest: b > 0.55 ? -1 : 0 }));
+}
+function heroBuild(H) {
+  const cut = (img, i) => { const c = _mk(96, 96); c.g.drawImage(img, i * 96, 0, 96, 96, 0, 0, 96, 96); return c.c; };
+  if (H.idleImg) { H.base = cut(H.east, 0); for (let f = 0; f < 8; f++) H.idle.push(cut(H.idleImg, f)); }
+  else {
+    H.base = heroIdleFrame(H, {});
+    for (let f = 0; f < 8; f++) {                              // 대기: 숨 쉬듯 머리와 가슴이 오르내림
+      const p = f / 8 * Math.PI * 2, b = (Math.sin(p) + 1) / 2;
+      H.idle.push(heroIdleFrame(H, { dyHead: -(b > 0.3 ? 1 : 0) - (b > 0.85 ? 1 : 0), dyChest: b > 0.55 ? -1 : 0 }));
+    }
   }
-  for (let f = 0; f < 6; f++) { const c = _mk(96, 96); c.g.drawImage(HERO.walkImg, f * 96, 0, 96, 96, 0, 0, 96, 96); HERO.walk.push(c.c); }
-  const h = _mk(96, 96); h.g.drawImage(HERO.base, 0, 0); h.g.globalCompositeOperation = 'source-atop'; h.g.fillStyle = 'rgba(255,60,60,0.5)'; h.g.fillRect(0, 0, 96, 96);
-  HERO.hurt = h.c;
+  for (let f = 0; f < 6; f++) H.walk.push(cut(H.walkImg, f));
+  const h = _mk(96, 96); h.g.drawImage(H.base, 0, 0); h.g.globalCompositeOperation = 'source-atop'; h.g.fillStyle = 'rgba(255,60,60,0.5)'; h.g.fillRect(0, 0, 96, 96);
+  H.hurt = h.c;
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('herochange'));   // 시작 화면 미리보기를 새 그림으로 다시 그리게 함
 }
 // 지금 상황에 맞는 프레임 (그림이 아직 로딩 중이면 null)
-function heroSprite(t, moving, hurt) {
+function heroSprite(t, moving, hurt, animal) {
+  HERO = HEROES[animal || 'cat'] || HEROES.cat;
   if (!HERO.ready) return null;
-  HERO.cur = HERO.hand; HERO.far = [33, 32.5];
+  HERO.cur = HERO.hand; HERO.far = HERO.walkFar[0];
   if (hurt) return HERO.hurt;
   if (!moving) return HERO.idle[Math.floor(t * 5) % 8];
   const i = Math.floor(t * 9) % 6, d = HERO.walkHand[i];   // 걷는 동안 주먹 위치가 프레임마다 달라서 무기도 따라감
