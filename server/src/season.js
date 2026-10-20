@@ -19,12 +19,14 @@ export function seasonInfo(nowMs, env) {
   const firstMs = Date.parse((env && env.FIRST_SEASON_START) || DEFAULT_FIRST);
   if (!(firstMs > 0)) throw new Error('FIRST_SEASON_START 설정이 올바르지 않습니다');
   // 시험용: TEST_SEASON_HOURS 가 있으면 시즌 길이를 그 시간으로 고정 (첫 시즌 시작 시각부터 연속). 정식 운영 때는 이 설정을 지움
+  // TEST_SEASON_OFFSET: 시즌 번호에 더하는 값. 진행 중인 시즌의 번호를 유지한 채 시작 시각·길이를 바꿀 때 씀
   const testH = Number(env && env.TEST_SEASON_HOURS);
   if (testH > 0) {
-    const len = testH * 3600e3;
-    if (nowMs < firstMs) return { index: 0, startsAt: null, endsAt: firstMs, name: '시즌 0 (테스트)' };
-    const index = Math.floor((nowMs - firstMs) / len) + 1;
-    return { index, startsAt: firstMs + (index - 1) * len, endsAt: firstMs + index * len, name: `시즌 ${index} (테스트)` };
+    const len = testH * 3600e3, offset = Math.max(0, Math.floor(Number(env && env.TEST_SEASON_OFFSET) || 0));
+    if (nowMs < firstMs) return { index: offset, startsAt: null, endsAt: firstMs, name: offset ? `시즌 ${offset} (테스트)` : '시즌 0 (테스트)' };
+    const index = Math.floor((nowMs - firstMs) / len) + 1 + offset;
+    const k = index - offset;
+    return { index, startsAt: firstMs + (k - 1) * len, endsAt: firstMs + k * len, name: `시즌 ${index} (테스트)` };
   }
   if (nowMs < firstMs) return { index: 0, startsAt: null, endsAt: firstMs, name: '시즌 0 (테스트)' };
   let index = 0, start = firstMs, end = firstMs;

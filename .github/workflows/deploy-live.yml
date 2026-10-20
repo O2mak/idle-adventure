@@ -42,5 +42,8 @@ jobs:
           node test/api.test.mjs || { echo "--- 로컬 서버 로그 ---"; tail -n 60 dev.log; exit 1; }
       - name: DB 표 적용 (이미 있으면 그대로 둠)
         run: npx wrangler d1 execute idlegame --remote --file=schema.sql --yes
-      - name: 배포 (테스트 시즌 설정 포함 — 정식 운영 때 이 값을 정리해야 함)
-        run: npx wrangler deploy --var FIRST_SEASON_START:2026-10-16T06:00:00+09:00 --var TEST_SEASON_HOURS:48
+      # 테스트 시즌 설정 — 정식 운영 때 이 값을 정리해야 함
+      # 2026-10-20: 시즌 3(10/20 06:00 시작)을 번호 그대로 11/15 06:00까지 유지. 624시간 = 26일, 번호 +2
+      #   (이전 설정: 10/16 06:00부터 48시간마다 → 시즌 1·2가 지나고 3이 진행 중이었음)
+      - name: 배포 (테스트 시즌 설정 포함)
+        run: npx wrangler deploy --var FIRST_SEASON_START:2026-10-20T06:00:00+09:00 --var TEST_SEASON_HOURS:624 --var TEST_SEASON_OFFSET:2

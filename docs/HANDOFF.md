@@ -1,4 +1,4 @@
-﻿# 인수인계 (HANDOFF)
+# 인수인계 (HANDOFF)
 
 새 세션은 이 파일을 먼저 읽고 시작합니다. 결정한 것, 설정한 것, 빠지기 쉬운 함정만 적습니다. 작업이 끝날 때마다 바뀐 부분만 갱신합니다. **비밀의 값은 절대 적지 않습니다(이름만).**
 
@@ -6,7 +6,7 @@
 | 브랜치 | 서버 | 주소 | Worker 이름 | DB(D1) | 시즌 |
 |---|---|---|---|---|---|
 | `develop` | 베타(테스트) | https://develop-idlegame.bangchi.workers.dev | `develop-idlegame` | `idlegame-dev` | 테스트 6시간 |
-| `cloudflare` | 라이브(친구들이 사용) | https://idlegame.bangchi.workers.dev | `idlegame` | `idlegame` | 테스트 48시간 (정식 운영 때 정리) |
+| `cloudflare` | 라이브(친구들이 사용) | https://idlegame.bangchi.workers.dev | `idlegame` | `idlegame` | 테스트 시즌: 시즌 3을 2026-11-15 06:00까지 유지 (624시간, 번호 +2. 정식 운영 때 정리) |
 | `main` | 보관용 (배포 안 됨) | - | - | - | - |
 
 - 배포는 GitHub Actions(`.github/workflows/deploy-develop.yml`, `deploy-live.yml`)가 합니다. 순서: `npm ci` → `npm run sync`(화면·서버 공유 코드 복사) → DB 표 적용(`schema.sql`, 이미 있으면 그대로) → `wrangler deploy`. 라이브는 앞에 서버 테스트(임시 로컬 서버)가 통과해야 합니다.

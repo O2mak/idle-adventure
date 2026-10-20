@@ -34,6 +34,11 @@ const sql = (q) => execSync(`npx wrangler d1 execute idlegame --local --command 
     ok('테스트 시즌: 시작 직후는 1', seasonInfo(f + 3600e3, e2).index === 1);
     ok('테스트 시즌: 48시간 뒤 2, 이름에 (테스트)', seasonInfo(f + 49 * 3600e3, e2).index === 2 && seasonInfo(f + 49 * 3600e3, e2).name.includes('테스트'));
     ok('테스트 시즌: 끝나는 시각', seasonInfo(f + 3600e3, e2).endsAt === f + 48 * 3600e3); }
+  { // 진행 중인 시즌 번호를 유지한 채 길이만 바꾸기 (TEST_SEASON_OFFSET)
+    const e3 = { FIRST_SEASON_START: '2026-10-20T06:00:00+09:00', TEST_SEASON_HOURS: '624', TEST_SEASON_OFFSET: '2' }, f = Date.parse(e3.FIRST_SEASON_START);
+    const a = seasonInfo(f + 3600e3, e3), b = seasonInfo(Date.parse('2026-11-15T06:01:00+09:00'), e3);
+    ok('시즌 번호 더하기: 시즌 3 유지, 시작 그대로, 11/15에 끝남', a.index === 3 && a.startsAt === f && a.endsAt === Date.parse('2026-11-15T06:00:00+09:00'));
+    ok('시즌 번호 더하기: 11/15 6시 지나면 시즌 4', b.index === 4 && b.startsAt === Date.parse('2026-11-15T06:00:00+09:00')); }
   ok('시즌: 시작 전은 0', seasonInfo(t('2026-11-30T20:59:00Z'), env).index === 0); // 12/01 05:59 KST
   ok('시즌: 정각에 1', seasonInfo(t('2026-12-01T06:00:00+09:00'), env).index === 1);
   ok('시즌: 14일까지 1', seasonInfo(t('2026-12-15T05:59:00+09:00'), env).index === 1);
