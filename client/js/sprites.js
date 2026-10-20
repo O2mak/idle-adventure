@@ -87,6 +87,8 @@ function _gear(it) {
 
 // 무기 (손에 드는 그림이자 아이콘). it이 없으면 기본 검
 function drawWeapon(it) {
+  const art = typeof weaponArt === 'function' && weaponArt(it);   // 그림 AI로 그린 무기 그림이 있으면 그대로 아이콘으로 씀(48칸)
+  if (art) { const ic = _mk(48, 48); ic.g.drawImage(art, 0, 0); return ic.c; }
   const lw = it && typeof legendOf === 'function' && legendOf(it);   // 전설 무기: 고유한 모양 (손에 드는 그림을 작게 줄여 아이콘으로 씀)
   if (lw) { const ic = _mk(24, 24); ic.g.drawImage(drawLegendWeaponHi(lw.name), 0, 0, 24, 24); return ic.c; }
   const s = _mk(24, 24);
@@ -228,6 +230,24 @@ function itemIconUrl(it) {
   const k = _gk(it);
   return _iconUrls[k] || (_iconUrls[k] = drawGearIcon(it).toDataURL());
 }
+
+// ---------- 무기 그림 (그림 AI로 그린 48x48 도트, img/weapons/). 불러오기 전이나 없으면 코드로 그린 무기를 씀 ----------
+// 일반 무기는 직업 x 등급(일반~영웅), 전설 무기는 이름별. 지역 색은 쓰지 않음
+const WEAPON_ART = {};
+function weaponArtKey(it) { const lw = typeof legendOf === 'function' && legendOf(it); return lw ? 'legend_' + lw.name : it.cls + '_' + Math.min(3, it.grade || 0); }
+function weaponArt(it) { const im = it && it.slot === 'weapon' && WEAPON_ART[weaponArtKey(it)]; return im && im.complete && im.naturalWidth ? im : null; }
+(function loadWeaponArt() {
+  if (typeof Image === 'undefined') return;
+  const keys = [];
+  for (const c of ['melee', 'ranged', 'mage']) for (let g = 0; g < 4; g++) keys.push(c + '_' + g);
+  for (const c of Object.keys(CFG.legendWeapons)) for (const l of CFG.legendWeapons[c]) keys.push('legend_' + l.name);
+  const refresh = () => {   // 그림이 도착하면 코드로 그려 둔 무기와 아이콘을 지워서 다시 그리게 함
+    for (const k of Object.keys(_cache)) if (k.startsWith('wp_')) delete _cache[k];
+    for (const k of Object.keys(_iconUrls)) if (k.includes('_weapon_')) delete _iconUrls[k];
+    if (typeof UI !== 'undefined') UI.lastHtml = '';
+  };
+  for (const k of keys) { const im = new Image(); im.onload = refresh; im.src = 'img/weapons/' + encodeURIComponent(k) + '.png'; WEAPON_ART[k] = im; }
+})();
 
 // 장비를 입은 캐릭터 (기본 몸 + 옷 + 반지 + 모자)
 function characterSprite(save, expr) {

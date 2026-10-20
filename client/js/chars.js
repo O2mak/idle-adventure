@@ -218,6 +218,8 @@ function drawLegendWeaponHi(name) {
 }
 
 function drawWeaponHi(it) {
+  const art = typeof weaponArt === 'function' && weaponArt(it);   // 그림 AI로 그린 무기 그림(48칸)
+  if (art) { const s = _mk(24 * HK, 24 * HK); s.g.drawImage(art, 0, 0); return s.c; }
   const lw = it && typeof legendOf === 'function' && legendOf(it);
   if (lw) return drawLegendWeaponHi(lw.name);
   const s = _mk(24 * HK, 24 * HK), K = _kit(s);
