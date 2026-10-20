@@ -626,11 +626,11 @@ function monsterKind(region, boss, variant) {
 // 지역 번호 → 일반 몬스터 그림 파일들(섞여 나옴), 보스 그림 파일, 배경 그림 파일. 파일이 없거나 아직 불러오는 중이면 위의 코드 그림을 씀
 const ART_SET = {
   1: { normal: ['img/mon_1_0.png', 'img/mon_1_1.png'], boss: 'img/mon_1_boss.png', bg: 'img/bg_1.png', near: 'img/near_1.png' },
-  2: { boss: 'img/mon_2_boss.png', bg: 'img/bg_2.png', near: 'img/near_2.png' },
-  3: { boss: 'img/mon_3_boss.png', bg: 'img/bg_3.png', near: 'img/near_3.png' },
-  4: { boss: 'img/mon_4_boss.png', bg: 'img/bg_4.png', near: 'img/near_4.png' },
-  5: { bg: 'img/bg_5.png', near: 'img/near_5.png' },
-  6: { bg: 'img/bg_6.png', near: 'img/near_6.png', nearMirror: true },
+  2: { normal: ['img/mon_2_0.png', 'img/mon_2_1.png'], boss: 'img/mon_2_boss.png', bg: 'img/bg_2.png', near: 'img/near_2.png' },
+  3: { normal: ['img/mon_3_0.png', 'img/mon_3_1.png'], boss: 'img/mon_3_boss.png', bg: 'img/bg_3.png', near: 'img/near_3.png' },
+  4: { normal: ['img/mon_4_0.png', 'img/mon_4_1.png'], boss: 'img/mon_4_boss.png', bg: 'img/bg_4.png', near: 'img/near_4.png' },
+  5: { normal: ['img/mon_5_0.png', 'img/mon_5_1.png'], boss: 'img/mon_5_boss.png', bg: 'img/bg_5.png', near: 'img/near_5.png' },
+  6: { normal: ['img/mon_6_0.png', 'img/mon_6_1.png'], boss: 'img/mon_6_boss.png', bg: 'img/bg_6.png', near: 'img/near_6.png', nearMirror: true },
   7: { bg: 'img/bg_7.png', near: 'img/near_7.png', nearMirror: true },
   8: { bg: 'img/bg_8.png', near: 'img/near_8.png' },
   9: { bg: 'img/bg_9.png', near: 'img/near_9.png', nearMirror: true },
