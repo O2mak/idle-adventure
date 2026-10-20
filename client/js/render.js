@@ -102,7 +102,7 @@ class Renderer {
     let eyes = 'open';
     if (hurt) eyes = 'hurt'; else if (happy) eyes = 'happy'; else if (t % 4 < 0.14) eyes = 'blink';
     const engaged = rt.enemies.some((e) => e.x <= e.stop + 1);
-    const hero = heroSprite(t, !engaged, hurt, s.animal);   // 고양이는 움직이는 영웅 그림(PixelLab), 그림이 없으면 예전 도트
+    const hero = heroSprite(t, !engaged, hurt, s.animal, swing);   // 고양이·강아지 영웅 그림 (그림이 없으면 예전 도트)
     const spr = hero || characterSprite(s, { eyes, mouth: swing > 0.3 || happy, tail: Math.floor(t * 3) % 2 });
     const bob = hero ? 0 : Math.sin(t * 7) * (engaged ? 0.6 : 1.2);
     const hop = happy ? Math.abs(Math.sin(t * 9)) * 6 : 0;
@@ -119,7 +119,7 @@ class Renderer {
       const cls = s.weaponType, hx = hero ? HERO.cur[0] : 24, hy = hero ? HERO.cur[1] : 22;   // 무기를 쥐는 손 위치
       g.save();
       if (cls === 'ranged') { // 활: 몸 앞에 세워 들고, 쏠 때 살짝 뒤로 당김
-        const bx = hero ? x + HERO.far[0] + 1 : x + hx + 3, by = hero ? y + HERO.far[1] - 1 : y + hy - 5;   // 영웅은 앞으로 뻗은 손에서 활을 듦
+        const bx = hero ? x + HERO.farNow[0] + 1 : x + hx + 3, by = hero ? y + HERO.farNow[1] - 1 : y + hy - 5;   // 영웅은 앞으로 뻗은 손에서 활을 듦
         g.drawImage(sw, hr(bx - 13 - swing * 2), by - 11, 24, 24);
       } else if (cls === 'mage') { // 스태프: 비스듬히 들고, 쓸 때 살짝 흔듦
         g.translate(x + hx - 2, y + hy + 3);
