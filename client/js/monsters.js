@@ -668,23 +668,52 @@ const NEAR_GAP = 1.8, _nearSp = {};
 function artNear(region) {
   const set = ART_SET[region]; if (!set || !set.near) return null;
   const im = artImage(set.near); if (!im) return null;
-  return _nearSp[set.near] || (_nearSp[set.near] = nearSpread(im, NEAR_GAP));
+  return _nearSp[set.near] || (_nearSp[set.near] = nearSpread(im, NEAR_GAP, !!set.nearMirror));
 }
-function nearSpread(im, k) {
+// mirror: 좌우를 번갈아 뒤집어 이어 붙이는 띠 (끝에 닿은 물체는 거울 이음매에 그대로 붙여야 끊기지 않음)
+function nearSpread(im, k, mirror) {
   try {
     const W = im.width, H = im.height, c = _mk(W, H); c.g.drawImage(im, 0, 0);
-    const d = c.g.getImageData(0, 0, W, H).data, occ = [];
-    for (let x = 0; x < W; x++) { occ[x] = false; for (let y = 0; y < H; y++) if (d[(y * W + x) * 4 + 3] > 20) { occ[x] = true; break; } }
+    const alpha = () => c.g.getImageData(0, 0, W, H).data;
+    let d = alpha();
+    const colOcc = () => { const o = []; for (let x = 0; x < W; x++) { o[x] = false; for (let y = 0; y < H; y++) if (d[(y * W + x) * 4 + 3] > 20) { o[x] = true; break; } } return o; };
+    let occ = colOcc();
     // 물체 덩어리(세로로 무언가 있는 열이 이어진 구간). 6칸보다 좁은 틈은 같은 덩어리로 봄
-    const seg = []; let x = 0;
-    while (x < W) { if (!occ[x]) { x++; continue; } let e = x; while (e < W && (occ[e] || occ.slice(e, e + 6).some(Boolean))) e++; seg.push([x, e]); x = e; }
-    if (seg.length < 2) return im;
+    const segs = () => { const seg = []; let x = 0; while (x < W) { if (!occ[x]) { x++; continue; } let e = x; while (e < W && (occ[e] || occ.slice(e, e + 6).some(Boolean))) e++; seg.push([x, e]); x = e; } return seg; };
+    let seg = segs();
+    if (!mirror && seg.length && (occ[0] || occ[W - 1])) {
+      // 그림 끝에 걸친 조각: 왼쪽 끝 열과 오른쪽 끝 열이 같은 높이에서 함께 차 있으면 한 물체가 둘로 나뉜 것 → 이음매를 빈 곳으로 옮겨 다시 붙임
+      let both = 0, either = 0;
+      for (let y = 0; y < H; y++) { const l = d[(y * W) * 4 + 3] > 20, r = d[(y * W + W - 1) * 4 + 3] > 20; if (l && r) both++; if (l || r) either++; }
+      if (occ[0] && occ[W - 1] && both >= either * 0.5) {
+        let best = -1, bestLen = 0;   // 가장 넓은 빈 구간의 가운데로 이음매를 옮김
+        for (let x = 0; x < W; x++) { if (occ[x]) continue; let e = x; while (e < W && !occ[e]) e++; if (e - x > bestLen) { bestLen = e - x; best = x + ((e - x) >> 1); } x = e; }
+        if (best > 0) { const r = _mk(W, H); r.g.drawImage(im, -best, 0); r.g.drawImage(im, W - best, 0); c.g.clearRect(0, 0, W, H); c.g.drawImage(r.c, 0, 0); }
+      } else {
+        // 이어지지 않는 반쪽 조각은 잘린 채 보이지 않게 뺌: 양쪽 끝에 닿은 물체(이어진 칸 덩어리) 중 작은 쪽만 지움
+        // (한쪽만 닿은 경우 그 물체를 지움. 큰 쪽은 울타리처럼 끝에 닿아도 어색하지 않은 경우가 많아서 남김)
+        const id = c.g.getImageData(0, 0, W, H), p = id.data;
+        const grab = (x) => { const seen = new Set(), st = []; for (let y = 0; y < H; y++) if (p[(y * W + x) * 4 + 3] > 20) st.push(y * W + x);
+          while (st.length) { const q = st.pop(); if (seen.has(q)) continue; seen.add(q); const qx = q % W, qy = (q / W) | 0;
+            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = qx + dx, ny = qy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const t = ny * W + nx; if (!seen.has(t) && p[t * 4 + 3] > 20) st.push(t); } }
+          return seen; };
+        const L = occ[0] ? grab(0) : null, R = occ[W - 1] ? grab(W - 1) : null;
+        const kill = L && R ? (L.size <= R.size ? L : R) : (L || R);
+        for (const q of kill) p[q * 4 + 3] = 0;
+        c.g.putImageData(id, 0, 0);
+      }
+      d = alpha(); occ = colOcc(); seg = segs();
+    }
+    if (seg.length < 2) return c.c;
     const gap = (g) => Math.round(g * k + 8);
-    // 새 너비 = 물체들 + 늘린 간격들 + 이어 붙이는 자리의 간격(그림의 왼쪽 끝과 오른쪽 끝 여백을 합친 것)
-    let total = gap(seg[0][0]) + gap(W - seg[seg.length - 1][1]);
+    // 양 끝 여백: 거울 띠에서 끝에 닿은 물체는 여백 0, 그 밖에는 늘린 간격(일반 띠는 이음매 간격을 앞뒤로 나눔)
+    const edgeL = gap(seg[0][0]), edgeR = gap(W - seg[seg.length - 1][1]);
+    const padL = mirror ? (occ[0] ? 0 : edgeL >> 1) : (edgeL + edgeR) >> 1;
+    const padR = mirror ? (occ[W - 1] ? 0 : edgeR >> 1) : (edgeL + edgeR) - padL;
+    let total = padL + padR;
     for (let i = 0; i < seg.length; i++) total += seg[i][1] - seg[i][0] + (i < seg.length - 1 ? gap(seg[i + 1][0] - seg[i][1]) : 0);
-    const out = _mk(total, H); let px = gap(seg[0][0]) >> 1;
-    for (let i = 0; i < seg.length; i++) { const w = seg[i][1] - seg[i][0]; out.g.drawImage(im, seg[i][0], 0, w, H, px, 0, w, H); px += w + (i < seg.length - 1 ? gap(seg[i + 1][0] - seg[i][1]) : 0); }
+    const out = _mk(total, H); let px = padL;
+    for (let i = 0; i < seg.length; i++) { const w = seg[i][1] - seg[i][0]; out.g.drawImage(c.c, seg[i][0], 0, w, H, px, 0, w, H); px += w + (i < seg.length - 1 ? gap(seg[i + 1][0] - seg[i][1]) : 0); }
     return out.c;
   } catch (e) { return im; }
 }
