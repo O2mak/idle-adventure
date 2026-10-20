@@ -1,4 +1,8 @@
 // 캔버스 렌더링 (논리 해상도 256x144, CSS로 정수배 확대). 숫자 효과는 별도의 고해상도 캔버스에 그림.
+// 캐릭터(HS)와 몬스터(MS)는 그림을 2배로 키워서 그림 → 그림 한 칸이 화면 한 칸이 되어 배경과 도트 크기가 같아짐
+const HS = 2, MS = 2;
+// 몸집이 커져서 겹치지 않도록, 몬스터는 화면에서만 오른쪽으로 띄워서 그림 (전투 거리·사거리 규칙은 그대로)
+function enemyPad(e) { return e && e.boss ? 52 : 24; }
 class Renderer {
   constructor(canvas, fxCanvas) {
     this.c = canvas; this.fc = fxCanvas; this.g = canvas.getContext('2d');
@@ -112,7 +116,9 @@ class Renderer {
     const br = engaged && !hero ? Math.sin(t * 2.6) * 0.03 : 0;
     const sh1 = sh0 * (1 + br), y = hr(hero ? foot + 1 - HERO.feet / HK - hop : foot - sh1 + 1 + bob - hop);   // 영웅 그림은 발 위치를 기준으로 맞춤
     g.fillStyle = 'rgba(0,0,0,0.22)';
-    g.fillRect(px - 10, foot - 1, 20, 3);
+    g.fillRect(px - 18, foot - 1, 36, 3);
+    // 캐릭터는 발밑을 기준으로 HS배로 키워서 그림 (그림 한 칸 = 화면 한 칸, 배경과 같은 도트 크기)
+    g.save(); g.translate(px * (1 - HS), (foot + 1) * (1 - HS)); g.scale(HS, HS);
     const sw = weaponSprite(s.equip.weapon);
     const drawWeapon = () => {
     if (sw) {
@@ -153,7 +159,9 @@ class Renderer {
         g.fillRect(hr(x + (hero ? HERO.cur[0] + 12.5 : 36.5) + Math.cos(a) * 5), hr(y + (hero ? HERO.cur[1] - 15.5 : 10.5) + Math.sin(a) * 5), 1, 1);
       }
     }
-    this.bar(px - 12, hero ? y - 1 : y - 4, 24, rt.hp / rt.d.hp, '#4ee06a');
+    g.restore();
+    const top = (foot + 1) - ((foot + 1) - (hero ? y + 10 : y)) * HS;   // 키운 뒤의 머리 위치
+    this.bar(px - 16, top - 5, 32, rt.hp / rt.d.hp, '#4ee06a');
   }
 
   drawEnemy(rt, e, region) {
@@ -161,7 +169,7 @@ class Renderer {
     const spr = monsterSprite(region, e.boss, Math.floor(e.seed * 7));
     const hop = Math.abs(Math.sin(t * 6 + e.seed)) * (e.x > e.stop + 1 ? 4 : 1);
     const shake = (t - e.flash) < 0.1 ? (Math.round(Math.random() * 3) - 1) : 0;
-    const cx = px + e.x, w = spr.width / HK, h = spr.height / HK, hr = (v) => Math.round(v * HK) / HK;
+    const cx = px + e.x + enemyPad(e), w = spr.width / HK * MS, h = spr.height / HK * MS, hr = (v) => Math.round(v * HK) / HK;
     const x = hr(cx - w / 2 + shake), y = hr(foot - h + 1 - hop);
     g.fillStyle = 'rgba(0,0,0,0.22)';
     g.fillRect(Math.round(cx - w / 3), foot - 1, Math.round(w * 0.66), 3);
@@ -169,19 +177,19 @@ class Renderer {
     if (e.boss) {
       const cxm = Math.round(cx);   // 보스는 몸집과 모양이 달라서 왕관 장식은 따로 그리지 않음
       if (rt.weak) {
-        const cy = y + h * 0.5, r = 9 + Math.sin(t * 14) * 1.5;
+        const cy = y + h * 0.5, r = 14 + Math.sin(t * 14) * 2;
         g.strokeStyle = '#ff4040'; g.lineWidth = 1.5;
         g.beginPath(); g.arc(cxm, cy, r, 0, 6.3); g.stroke();
         g.fillStyle = '#ff4040'; g.fillRect(cxm - 1, cy - 4, 2, 8); g.fillRect(cxm - 4, cy - 1, 8, 2);
       }
     }
-    this.bar(cx - (e.boss ? 24 : 12), y - 4, e.boss ? 48 : 24, e.hp / e.maxhp, e.boss ? '#ff5a5a' : '#ff9a5a');
+    this.bar(cx - (e.boss ? 32 : 16), Math.max(4, y - 4), e.boss ? 64 : 32, e.hp / e.maxhp, e.boss ? '#ff5a5a' : '#ff9a5a');
   }
 
   // 날아가는 화살/마법 연출 (피해는 이미 적용됐고, 모양만 그림)
   drawProj(rt, p) {
     const g = this.g, age = rt.clock - p.born, foot = this.V.foot;
-    const x0 = this.V.playerX + 24, x1 = this.V.playerX + p.x, yMid = foot - 16;
+    const x0 = this.V.playerX + 28, x1 = this.V.playerX + p.x + enemyPad(rt.enemies.find((e) => e.boss) || {}), yMid = foot - 28;
     const lerp = (a, b, t) => a + (b - a) * t;
     if (p.type === 'arrow') {
       for (let i = 0; i < (p.hits || 1); i++) {
@@ -251,7 +259,7 @@ class Renderer {
     for (const f of rt.fx) {
       const age = rt.clock - f.born;
       g.globalAlpha = Math.max(0, 1 - age / 0.9);
-      const x = (this.V.playerX + f.x) * sc, y = (this.V.foot - 40 - age * 18) * sc;
+      const x = (this.V.playerX + f.x + (f.x > 10 ? enemyPad({}) : 0)) * sc, y = (this.V.foot - 72 - age * 18) * sc;
       g.lineWidth = Math.max(2, sc * 1.4); g.strokeStyle = '#000'; g.strokeText(f.text, x, y);
       g.fillStyle = f.color; g.fillText(f.text, x, y);
     }
