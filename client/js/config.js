@@ -221,7 +221,12 @@ const CFG = {
 
   // 보관함 / 합성 / 분해
   inv: { start: 50, step: 5, max: 150, cost: [300, 1.35] },
-  merge: { need: 10, maxResultGrade: 3, resultSlots: ['hat', 'armor', 'ring'] }, // 전설은 합성 불가, 결과 부위는 무기 제외
+  // 합성 묶음: 같은 묶음 안의 같은 등급 장비 N개 → 한 단계 위 등급 1개 (결과 부위는 묶음 안에서 랜덤). 전설은 합성 불가
+  merge: { need: 10, maxResultGrade: 3, groups: [
+    { key: 'weapon', name: '무기', slots: ['weapon'] },
+    { key: 'armor', name: '방어구(모자·옷)', slots: ['hat', 'armor'] },
+    { key: 'ring', name: '장신구', slots: ['ring'] },
+  ] },
   salvageMul: [1, 3, 8, 20, 50],        // 분해 보상 = 해당 지역 몬스터 골드 x 이 값 (적게)
 
   // 직업별 스킬 (unlock=해금 캐릭터 레벨, hits=연속 타수, fx=날아가는 연출 종류)

@@ -363,23 +363,26 @@ function salvageUpTo(rt, grade) {
   return total;
 }
 
-function mergeCount(s, slot, grade) {
+// 합성 묶음(무기 / 방어구=모자·옷 / 장신구) 찾기
+function mergeGroupDef(key) { return CFG.merge.groups.find((g) => g.key === key) || null; }
+function mergeCount(s, key, grade) {
+  const def = mergeGroupDef(key); if (!def) return 0;
   let n = 0;
-  for (const it of s.inv) if (it.slot === slot && it.grade === grade) n++;
+  for (const it of s.inv) if (def.slots.includes(it.slot) && it.grade === grade) n++;
   return n;
 }
 function canMergeGrade(grade) { return grade + 1 <= CFG.merge.maxResultGrade; }   // 합성은 등급 해금과 상관없이 가능(재료 10개가 워낙 많이 필요해서 자연히 늦어짐)
 
-// 같은 부위 + 같은 등급 N개 → 한 단계 위 등급 장비 1개 (부위/직업 랜덤, 무기 제외, 강화 소멸)
-function mergeGroup(rt, slot, grade) {
-  const s = rt.save, need = CFG.merge.need;
-  if (!canMergeGrade(grade, s) || mergeCount(s, slot, grade) < need) return false;
-  const pool = s.inv.filter((x) => x.slot === slot && x.grade === grade)
+// 같은 묶음 + 같은 등급 N개 → 한 단계 위 등급 장비 1개 (결과 부위는 묶음 안에서 랜덤, 직업 랜덤, 강화 소멸)
+function mergeGroup(rt, key, grade) {
+  const s = rt.save, need = CFG.merge.need, def = mergeGroupDef(key);
+  if (!def || !canMergeGrade(grade, s) || mergeCount(s, key, grade) < need) return false;
+  const pool = s.inv.filter((x) => def.slots.includes(x.slot) && x.grade === grade)
     .sort((a, b) => (a.enh - b.enh) || (itemScore(a) - itemScore(b))).slice(0, need);
   const ids = new Set(pool.map((x) => x.uid));
   const region = Math.max(CFG.gradeUnlock[grade + 1], ...pool.map((x) => x.region));
   s.inv = s.inv.filter((x) => !ids.has(x.uid));
-  const item = makeItem(s, pickRandom(rt, CFG.merge.resultSlots), grade + 1, region, pickRandom(rt, CFG.enabledClasses));
+  const item = makeItem(s, pickRandom(rt, def.slots), grade + 1, region, pickRandom(rt, CFG.enabledClasses));
   addItem(rt, item, true);
   msg(rt, `합성 성공! [${CFG.gradeNames[grade + 1]}] ${item.name}`, 'ok');
   rt.happyAt = rt.clock;
@@ -390,8 +393,8 @@ function mergeAll(rt) {
   let n = 0, again = true;
   while (again) {
     again = false;
-    for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g, rt.save); g++) {
-      if (mergeGroup(rt, slot, g)) { n++; again = true; }
+    for (const def of CFG.merge.groups) for (let g = 0; canMergeGrade(g, rt.save); g++) {
+      if (mergeGroup(rt, def.key, g)) { n++; again = true; }
     }
   }
   return n;

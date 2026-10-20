@@ -464,20 +464,23 @@ function panelEquip() {
     `<button class="chip" data-act="autosalv">자동 분해: ${autoLabel}</button>` +
     `<button class="chip" data-act="salvgrade:0">일반 전부 분해</button></div>`;
 
-  const list = s.inv.slice().sort((a, b) => (b.grade - a.grade) || (CFG.slots.indexOf(a.slot) - CFG.slots.indexOf(b.slot)) || (itemScore(b) - itemScore(a)));
+  // 정렬: 지금 직업이 착용할 수 있는 장비가 먼저, 그 안에서 등급이 높은 순 → 부위 순 → 점수 순. 착용할 수 없는 장비(다른 직업)는 뒤로
+  const wear = (it) => (it.cls === s.weaponType ? 0 : 1);
+  const list = s.inv.slice().sort((a, b) => (wear(a) - wear(b)) || (b.grade - a.grade) || (CFG.slots.indexOf(a.slot) - CFG.slots.indexOf(b.slot)) || (itemScore(b) - itemScore(a)));
   h += '<div class="grid">' + list.map(invCell).join('') + '<div class="cell empty"></div>'.repeat(Math.max(0, s.invCap - list.length)) + '</div>';
 
   // 합성
   let mergeRows = '';
-  for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g, s); g++) {
-    const n = mergeCount(s, slot, g);
+  for (const def of CFG.merge.groups) for (let g = 0; canMergeGrade(g, s); g++) {
+    const n = mergeCount(s, def.key, g);
     if (!n) continue;
-    const rep = s.inv.find((x) => x.slot === slot && x.grade === g);
-    mergeRows += `<div class="row">${gearIcon(rep, 'sm')}<div class="rn">${CFG.slotNames[slot]} · ${CFG.gradeNames[g]} <b>${n}/${CFG.merge.need}</b>` +
-      `<small>${CFG.gradeNames[g + 1]} 장비로 합성 (부위·직업 랜덤, 무기 제외)</small></div>` +
-      `<button class="buy" data-act="merge:${slot}:${g}" ${n >= CFG.merge.need ? '' : 'disabled'}>합성</button></div>`;
+    const rep = s.inv.find((x) => def.slots.includes(x.slot) && x.grade === g);
+    const what = def.key === 'weapon' ? '무기만 나와요' : def.key === 'armor' ? '모자나 옷이 나와요' : '장신구만 나와요';
+    mergeRows += `<div class="row">${gearIcon(rep, 'sm')}<div class="rn">${def.name} · ${CFG.gradeNames[g]} <b>${n}/${CFG.merge.need}</b>` +
+      `<small>${CFG.gradeNames[g + 1]} 장비로 합성 (${what}, 직업은 랜덤)</small></div>` +
+      `<button class="buy" data-act="merge:${def.key}:${g}" ${n >= CFG.merge.need ? '' : 'disabled'}>합성</button></div>`;
   }
-  h += '<h3>합성</h3>' + (mergeRows || '<p class="note">같은 부위·같은 등급 장비를 10개 모으면 한 단계 위 장비로 합칠 수 있어요. (강화는 사라지고, 전설은 합성으로 만들 수 없어요)</p>');
+  h += '<h3>합성</h3>' + (mergeRows || '<p class="note">같은 등급 장비를 10개 모으면 한 단계 위 장비로 합칠 수 있어요. 무기는 무기끼리, 모자와 옷은 함께, 장신구는 따로 합쳐요. (강화는 사라지고, 전설은 합성으로 만들 수 없어요)</p>');
   if (mergeRows) h += `<div class="toolbar"><button class="chip" data-act="mergeall">가능한 합성 모두 진행</button></div>`;
 
   // 전설 무기 도감: 아직 얻지 못한 무기도 이름과 특성을 미리 볼 수 있음 (지금 보유 중이면 표시)
@@ -759,7 +762,7 @@ async function adAct(what, kind) {
 function tabBadge(s, key) {
   if (key === 'equip') {
     if (s.inv.some((it) => it.cls === s.weaponType && itemScore(it) > itemScore(s.equip[it.slot]))) return true;
-    for (const slot of CFG.slots) for (let g = 0; canMergeGrade(g, s); g++) if (mergeCount(s, slot, g) >= CFG.merge.need) return true;
+    for (const def of CFG.merge.groups) for (let g = 0; canMergeGrade(g, s); g++) if (mergeCount(s, def.key, g) >= CFG.merge.need) return true;
     return false;
   }
   if (key === 'perm') return s.permPoints > 0 && Object.keys(CFG.perm.items).some((k) => { const c = permNextCost(s, k); return c !== null && s.permPoints >= c; });
