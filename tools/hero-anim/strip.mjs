@@ -13,7 +13,8 @@ const r = await page.evaluate(async (url, N, erase) => {
   const W = img.width, H = img.height, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
   const D = g.getImageData(0, 0, W, H).data, at = (x, y) => { const o = (y * W + x) * 4; return [D[o], D[o + 1], D[o + 2]]; };
   const s = W / N, M = Math.round(H / s);
-  const isBg = (p) => p[0] > 150 && p[2] > 150 && p[1] < Math.min(p[0], p[2]) * 0.62;
+  // 자홍 배경, 그리고 배경 위의 흰빛 반짝이(워터마크: 빨강과 파랑이 거의 같고 초록만 약간 낮은 밝은 색)
+  const isBg = (p) => (p[0] > 150 && p[2] > 150 && p[1] < Math.min(p[0], p[2]) * 0.62) || (p[0] > 200 && p[2] > 200 && Math.abs(p[0] - p[2]) < 14 && p[1] < p[0] - 12);
   const grid = [];
   for (let j = 0; j < M; j++) { const row = []; for (let i = 0; i < N; i++) {
     const bins = new Map(); let bgc = 0, tot = 0;
@@ -22,7 +23,7 @@ const r = await page.evaluate(async (url, N, erase) => {
     if (bgc > tot * 0.5 || !bins.size) { row.push(null); continue; }
     let t = null; for (const b of bins.values()) if (!t || b[0] > t[0]) t = b;
     const col = [Math.round(t[1] / t[0]), Math.round(t[2] / t[0]), Math.round(t[3] / t[0])];
-    const mg = col[1] < Math.min(col[0], col[2]) * 0.7 && Math.abs(col[0] - col[2]) < 60 && col[0] > 60;   // 자홍 배경이 섞인 테두리
+    const mg = col[1] < Math.min(col[0], col[2]) * 0.7 && Math.abs(col[0] - col[2]) < 28 && col[0] > 60;   // 빨강과 파랑이 거의 같을 때만 (벚꽃 분홍은 빨강이 더 강해서 제외)   // 자홍 배경이 섞인 테두리
     if (mg && col[0] + col[2] > 330) { row.push(null); continue; }
     row.push(mg ? [40, 26, 40] : col);
   } grid.push(row); }
@@ -45,4 +46,6 @@ await browser.close();
 fs.writeFileSync(dest, Buffer.from(r.png.split(',')[1], 'base64'));
 fs.writeFileSync(dest.replace(/\.png$/, '_preview.png'), Buffer.from(r.prev.split(',')[1], 'base64'));
 console.log(`원본 ${r.W}x${r.H}, 칸 ${r.s.toFixed(2)}px → ${r.N}x${r.h}`);
+
+
 
