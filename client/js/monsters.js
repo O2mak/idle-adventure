@@ -628,13 +628,13 @@ const ART_SET = {
   1: { normal: ['img/mon_1_0.png', 'img/mon_1_1.png'], boss: 'img/mon_1_boss.png', bg: 'img/bg_1.png', near: 'img/near_1.png' },
   2: { boss: 'img/mon_2_boss.png', bg: 'img/bg_2.png', near: 'img/near_2.png' },
   3: { boss: 'img/mon_3_boss.png', bg: 'img/bg_3.png', near: 'img/near_3.png' },
-  4: { boss: 'img/mon_4_boss.png', bg: 'img/bg_4.png' },
+  4: { boss: 'img/mon_4_boss.png', bg: 'img/bg_4.png', near: 'img/near_4.png' },
   5: { bg: 'img/bg_5.png' },
   6: { bg: 'img/bg_6.png' },
-  7: { bg: 'img/bg_7.png' },
-  8: { bg: 'img/bg_8.png' },
+  7: { bg: 'img/bg_7.png', near: 'img/near_7.png', nearMirror: true },
+  8: { bg: 'img/bg_8.png', near: 'img/near_8.png' },
   9: { bg: 'img/bg_9.png' },
-  10: { bg: 'img/bg_10.png' },
+  10: { bg: 'img/bg_10.png', near: 'img/near_10.png' },
 };
 const _art = {};
 // 그림 파일을 불러와서 준비되면 그림을 돌려줌 (발 아래 투명한 여백은 잘라서 발이 땅에 닿게 함). 아직이면 null
@@ -664,3 +664,4 @@ function artMonster(region, boss, variant) {
 function artBackground(region) { const set = ART_SET[region]; return set && set.bg ? artImage(set.bg) : null; }
 // 가까운 풍경 띠 (캐릭터 바로 뒤에 깔리는 큰 나무·건물, 가로로 이어 붙여 흐름)
 function artNear(region) { const set = ART_SET[region]; return set && set.near ? artImage(set.near) : null; }
+function nearMirror(region) { const set = ART_SET[region]; return !!(set && set.nearMirror); }

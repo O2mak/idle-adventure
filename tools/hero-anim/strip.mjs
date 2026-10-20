@@ -2,13 +2,13 @@
 // 사용: node strip.mjs <그림 파일> <저장할 PNG> [가로 칸 수=512] [지울 칸 영역 x0,y0,x1,y1 ...]
 import puppeteer from 'puppeteer-core';
 import fs from 'fs';
-const [, , file, dest, cols, ...erase] = process.argv;
+const args = process.argv.slice(2), noMg = args.includes('--nomg'), [file, dest, cols, ...erase] = args.filter((a) => a !== '--nomg');   // --nomg: 보라·자홍 계열 그림은 테두리 보정을 끔
 const N = Number(cols || 512);
 const ext = file.toLowerCase().endsWith('.webp') ? 'webp' : 'png';
 const url = `data:image/${ext};base64,` + fs.readFileSync(file).toString('base64');
 const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
 const page = await browser.newPage(); await page.setContent('<body></body>');
-const r = await page.evaluate(async (url, N, erase) => {
+const r = await page.evaluate(async (url, N, erase, noMg) => {
   const img = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = url; });
   const W = img.width, H = img.height, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
   const D = g.getImageData(0, 0, W, H).data, at = (x, y) => { const o = (y * W + x) * 4; return [D[o], D[o + 1], D[o + 2]]; };
@@ -23,7 +23,7 @@ const r = await page.evaluate(async (url, N, erase) => {
     if (bgc > tot * 0.5 || !bins.size) { row.push(null); continue; }
     let t = null; for (const b of bins.values()) if (!t || b[0] > t[0]) t = b;
     const col = [Math.round(t[1] / t[0]), Math.round(t[2] / t[0]), Math.round(t[3] / t[0])];
-    const mg = col[1] < Math.min(col[0], col[2]) * 0.7 && Math.abs(col[0] - col[2]) < 28 && col[0] > 60;   // 빨강과 파랑이 거의 같을 때만 (벚꽃 분홍은 빨강이 더 강해서 제외)   // 자홍 배경이 섞인 테두리
+    const mg = !noMg && col[1] < Math.min(col[0], col[2]) * 0.7 && Math.abs(col[0] - col[2]) < 28 && col[0] > 60;   // 빨강과 파랑이 거의 같을 때만 (벚꽃 분홍은 빨강이 더 강해서 제외)   // 자홍 배경이 섞인 테두리
     if (mg && col[0] + col[2] > 330) { row.push(null); continue; }
     row.push(mg ? [40, 26, 40] : col);
   } grid.push(row); }
@@ -41,11 +41,12 @@ const r = await page.evaluate(async (url, N, erase) => {
   og.putImageData(id, 0, 0);
   const pv = document.createElement('canvas'); pv.width = N * 3; pv.height = h * 3; const pg = pv.getContext('2d'); pg.fillStyle = '#7a8aa0'; pg.fillRect(0, 0, pv.width, pv.height); pg.imageSmoothingEnabled = false; pg.drawImage(o, 0, 0, pv.width, pv.height);
   return { W, H, s, N, h, png: o.toDataURL(), prev: pv.toDataURL() };
-}, url, N, erase);
+}, url, N, erase, noMg);
 await browser.close();
 fs.writeFileSync(dest, Buffer.from(r.png.split(',')[1], 'base64'));
 fs.writeFileSync(dest.replace(/\.png$/, '_preview.png'), Buffer.from(r.prev.split(',')[1], 'base64'));
 console.log(`원본 ${r.W}x${r.H}, 칸 ${r.s.toFixed(2)}px → ${r.N}x${r.h}`);
+
 
 
 

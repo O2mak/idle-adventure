@@ -94,7 +94,13 @@ class Renderer {
     }
     // 가까운 풍경 띠: 먼 배경보다 빠르게 흘러서 원근감이 생김. 밑동이 땅에 살짝 묻히게 그림
     const near = typeof artNear === 'function' ? artNear(sr) : null;
-    if (near) this.tile(near, sc * 0.5, gy - near.height + 3);
+    if (near && nearMirror(sr)) {   // 그림 끝에 걸친 건물이 끊기지 않도록 좌우를 번갈아 뒤집어 이어 붙임
+      const w = near.width, y = gy - near.height + 3, off = (((sc * 0.5) % (w * 2)) + w * 2) % (w * 2), base = Math.floor(off / w), within = off - base * w;
+      for (let i = 0; i * w - within < this.W; i++) {
+        const x = Math.round(i * w - within);
+        if ((base + i) % 2 === 1) { g.save(); g.translate(x + w, 0); g.scale(-1, 1); g.drawImage(near, 0, y); g.restore(); } else g.drawImage(near, x, y);
+      }
+    } else if (near) this.tile(near, sc * 0.5, gy - near.height + 3);
     this.tile(L.ground, sc, gy);
 
     for (const e of rt.enemies) this.drawEnemy(rt, e, sr);
