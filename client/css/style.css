@@ -361,3 +361,27 @@ body.mode-mini #hudLock { bottom: 20px; padding: 2px 6px; }
 .profcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 10px 0; }
 .profcard .rn .tname { font-weight: bold; } .profcard .rn .tsub, .profcard .rn .tstat { font-size: 12px; }
 .rankrow[data-act]:hover { filter: brightness(1.15); }
+
+/* 무한 모드: 결과 카드, 내 현황, 순위표, 시즌 보상 */
+#endlessResult { position: absolute; left: 50%; top: 12%; transform: translateX(-50%); width: min(92%, 300px); z-index: 6; background: rgba(20,22,30,.95); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.5; box-shadow: 0 4px 18px rgba(0,0,0,.5); }
+#endlessResult .er-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+#endlessResult .er-floor { font-size: 14px; margin: 2px 0 6px; } #endlessResult .er-floor b { font-size: 30px; color: var(--accent); } #endlessResult .er-floor small { display: block; color: var(--dim); font-size: 12px; margin-top: -4px; }
+#endlessResult .er-row { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding: 4px 0; }
+#endlessResult .er-row em { color: var(--good); font-style: normal; font-weight: bold; }
+#endlessResult .er-up { color: var(--dim); font-size: 12px; padding-bottom: 4px; } #endlessResult .er-up b { color: var(--accent); }
+#endlessResult .er-btns { display: flex; justify-content: flex-end; margin-top: 4px; }
+body.mode-mini #endlessResult { top: 6%; font-size: 11px; padding: 6px 8px; } body.mode-mini #endlessResult .er-floor b { font-size: 22px; }
+.mycard { background: linear-gradient(135deg, #2f2a1c, var(--panel2)); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+.mycard .mc-rank { display: flex; align-items: baseline; gap: 10px; } .mycard .mc-rank b { font-size: 30px; color: var(--accent); line-height: 1.1; } .mycard .mc-rank b small { font-size: 14px; } .mycard .mc-rank span { color: var(--dim); font-size: 12px; }
+.mycard .mc-stats { display: flex; gap: 8px; margin-top: 8px; } .mycard .mc-stats > div { flex: 1; background: rgba(0,0,0,.25); border-radius: 8px; padding: 6px 8px; } .mycard .mc-stats span { display: block; color: var(--dim); font-size: 11px; } .mycard .mc-stats b { font-size: 16px; }
+.mycard .mc-up { margin-top: 6px; color: var(--dim); font-size: 12px; }
+.rewardbox { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+.rewardbox .row.mine { border: 1px solid var(--accent); background: #2f2a1c; } .rewardbox .tag { color: #1a1205; background: var(--accent); border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+.rankhead { display: flex; gap: 8px; padding: 2px 8px; font-size: 11px; color: var(--dim); } .rankhead .rk { width: 30px; text-align: center; } .rankhead .nm { flex: 1; } .rankhead .fl { width: 52px; text-align: right; } .rankhead .wh { width: 78px; text-align: right; }
+.rankrow { position: relative; overflow: hidden; cursor: pointer; background: linear-gradient(90deg, rgba(255,181,61,.16) var(--w, 0%), transparent var(--w, 0%)), var(--panel2); }
+.rankrow .rk { width: 30px; font-size: 15px; } .rankrow .fl { width: 52px; text-align: right; }
+.rankrow em { font-style: normal; font-size: 10px; background: var(--accent); color: #1a1205; border-radius: 999px; padding: 0 6px; margin-left: 4px; font-weight: bold; }
+.rankrow.me { background: linear-gradient(90deg, rgba(78,224,106,.22) var(--w, 100%), transparent var(--w, 100%)), #2f2a1c; }
+.rankrow.top1 { border-color: #ffd35a; } .rankrow.top2 { border-color: #aeb7c6; } .rankrow.top3 { border-color: #c98a5a; }
+.rankrow.mine-out { margin-top: 4px; cursor: default; }
+.rankbox { max-height: 380px; }

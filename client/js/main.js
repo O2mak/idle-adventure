@@ -176,6 +176,7 @@
     renderer = new Renderer($('view'), $('fx')); UI.renderer = renderer;   // 작은 창(영상)이 탭이 뒤로 가도 그릴 수 있게
     uiInit(rt);
     UI.onChange = onUiChange;
+    UI.syncSave = () => (online && !paused ? pushServer(false) : null);   // 무한 모드 결과 카드: 방금 기록을 서버에 올린 뒤 순위를 보기 위해
     beat();
     persist();
     startLoops();

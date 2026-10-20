@@ -1,6 +1,7 @@
 // 서버 통합 테스트: 먼저 `npm run dev` 로 서버를 켜 둔 상태에서 `npm test`
 import { execSync } from 'node:child_process';
-import { newSave } from '../src/shared/game.generated.js';
+import { newSave, makeItem, CFG } from '../src/shared/game.generated.js';
+import { checkEndlessClaim } from '../src/savelogic.js';
 import { seasonInfo } from '../src/season.js';
 import { checkNickname } from '../src/nickname.js';
 
@@ -28,6 +29,12 @@ const sql = (q) => execSync(`npx wrangler d1 execute idlegame --local --command 
 
 // ---------- 순수 로직 ----------
 {
+  { // 합성 장비는 등급이 열리는 지역 값을 가져서 최고 도달 지역보다 클 수 있음 → 정상으로 봐야 함 (예전에는 무한 모드 기록이 거부됐음)
+    const mk = (grade, region) => { const sv = newSave('dog', '테스트'); sv.endless = { best: 3, bestAt: 0 }; sv.playTime = 600; sv.equip.weapon = makeItem(sv, 'weapon', grade, region, 'melee'); return sv; };
+    const old = { endless: { best: 0, bestAt: 0 } }, msg = '장비 정보가 진행도와 맞지 않아요';
+    ok('합성 장비(희귀, 7지역)는 최고 지역이 1이어도 정상', !checkEndlessClaim(old, mk(2, CFG.gradeUnlock[2]), 600).includes(msg));
+    ok('등급이 열리는 지역보다 높은 지역의 장비는 이상함', checkEndlessClaim(old, mk(2, CFG.gradeUnlock[2] + 1), 600).includes(msg));
+    ok('등급이 열리는 지역보다 낮은 지역의 장비는 이상함', checkEndlessClaim(old, mk(2, CFG.gradeUnlock[2] - 1), 600).includes(msg)); }
   const env = { FIRST_SEASON_START: '2026-12-01T06:00:00+09:00' };
   const t = (s) => Date.parse(s);
   { const e2 = { FIRST_SEASON_START: '2026-10-16T06:00:00+09:00', TEST_SEASON_HOURS: '48' }; const f = Date.parse(e2.FIRST_SEASON_START);

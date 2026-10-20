@@ -263,6 +263,8 @@ function uiAct(act) {
       break;
     }
     case 'profclose': UI.prof = null; break;
+    case 'resultclose': if (UI.result) UI.result.closed = true; break;
+    case 'rewardtoggle': UI.showRewards = !UI.showRewards; break;
     case 'diff': {   // 보통 / 어려움 보기 전환
       UI.hardView = b === 'hard' && hardOpen(s);
       UI.chap = s.hard === UI.hardView ? s.region : 1;
@@ -579,35 +581,90 @@ function profileCard() {
   }
   return h + '</div>';
 }
+// 시즌 보상 규칙 (서버와 같은 순서: 위에서부터 먼저 맞는 항목 하나)
+function rewardForRank(rank, total) {
+  for (const r of CFG.endless.rewards) if ((r.rank && rank === r.rank) || (r.pct && rank / total <= r.pct)) return r;
+  return null;
+}
+const rewardLabel = (r) => (r.rank ? `${r.rank}등` : `상위 ${Math.round(r.pct * 100)}%`);
+const rewardDesc = (r) => `영구 포인트 +${r.points}${r.title ? ` · 칭호 '${r.title.label}' (능력치 효과 ${CFG.titleBuffSeasons}시즌)` : ''}`;
+
+// 도전이 끝날 때 뜨는 결과 카드 (몇 층까지 갔는지, 지금 몇 등인지). 화면 갱신 때마다 호출됨
+function endlessResultSync(rt) {
+  const er = rt.endlessResult, el = $('endlessResult');
+  if (er && UI.shownResult !== er.n) {
+    UI.shownResult = er.n;
+    const X = UI.result = { er, busy: !!UI.online, me: null, total: 0, up: null, err: '', until: Date.now() + 12000, closed: false };
+    if (UI.online) {
+      // 방금 기록이 순위에 반영되도록 저장을 먼저 올린 뒤 순위를 불러옴
+      Promise.resolve(UI.syncSave ? UI.syncSave() : null).catch(() => {}).then(() => API.ranking()).then((d) => {
+        UI.rank = Object.assign(UI.rank || { at: 0, data: null, busy: false, err: '' }, { data: d, at: Date.now(), err: '' });
+        X.me = d.me; X.total = d.total;
+        const above = d.me && d.list.find((r) => r.rank === d.me.rank - 1);
+        X.up = above ? { name: above.nickname, diff: above.floor - d.me.floor } : null;
+      }).catch((err) => { X.err = err.message || '순위를 불러오지 못했어요.'; }).finally(() => { X.busy = false; UI.lastHtml = ''; });
+    }
+  }
+  const X = UI.result, show = !!X && !X.closed && Date.now() < X.until;
+  if (!show) { if (!el.classList.contains('hidden')) { el.classList.add('hidden'); el.innerHTML = ''; UI.lastResult = ''; } return; }
+  const E = CFG.endless, best = rt.save.endless.best;
+  let rank;
+  if (!UI.online) rank = '순위는 서버에 접속했을 때만 볼 수 있어요.';
+  else if (X.busy) rank = '순위 확인 중…';
+  else if (X.err) rank = esc(X.err);
+  else if (X.me) rank = `<b class="gold">${X.me.rank}등</b> / ${X.total}명`;
+  else rank = best < E.minFloor ? `${E.minFloor}층부터 순위에 올라요 (${E.minFloor - best}층 남음)` : '아직 순위에 없어요 (기록 확인 중이에요)';
+  const up = X.up ? (X.up.diff > 0 ? `바로 위 ${esc(X.up.name)}님까지 <b>${X.up.diff}층</b> 차이` : `바로 위 ${esc(X.up.name)}님과 같은 층 (먼저 도달한 분이 위)`) : '';
+  const html = `<div class="er-head"><b>무한 모드 결과</b><button class="chip" data-act="resultclose">닫기</button></div>` +
+    `<div class="er-floor"><b>${X.er.floor}</b>층<small>${esc(X.er.why || '')} 여기서 멈췄어요</small></div>` +
+    `<div class="er-row"><span>이번 시즌 최고</span><span><b class="gold">${best ? best + '층' : '기록 없음'}</b>${X.er.newBest ? ' <em>새 기록!</em>' : ''}</span></div>` +
+    `<div class="er-row"><span>내 순위</span><span>${rank}</span></div>` + (up ? `<div class="er-up">${up}</div>` : '') +
+    `<div class="er-btns"><button class="chip" data-act="tab:endless">순위표 보기</button></div>`;
+  if (html !== UI.lastResult) { UI.lastResult = html; el.innerHTML = html; }
+  el.classList.remove('hidden');
+}
+
 function panelEndless() {
-  const rt = UI.rt, s = rt.save, E = CFG.endless, on = !!rt.endless;
+  const rt = UI.rt, s = rt.save, E = CFG.endless, on = !!rt.endless, best = s.endless.best;
   fetchRanking(false);
-  let h = `<div class="head"><span>이번 시즌 최고 <b class="gold">${s.endless.best ? s.endless.best + '층' : '기록 없음'}</b></span>` +
-    `<span>${on ? `지금 <b>${rt.endless.floor}층</b> 도전 중` : '도전 전'}</span></div>`;
+  const R = UI.rank, d = R && R.data, me = d && d.me;
+  let h = '';
+  // 내 현황 카드: 순위, 최고 층, 방금 도전 결과
+  const rankTxt = !UI.online ? '오프라인' : me ? `${me.rank}<small>등</small>` : '-';
+  const subTxt = !UI.online ? '순위는 서버에 접속했을 때만 볼 수 있어요.' : me ? `참가 ${d.total}명 중` : (best && best < E.minFloor ? `${E.minFloor}층부터 순위에 올라요` : best ? '기록이 곧 순위에 반영돼요' : `${E.minFloor}층에 도달하면 순위에 올라요`);
+  const above = me && d.list.find((r) => r.rank === me.rank - 1);
+  const er = rt.endlessResult;
+  h += `<div class="mycard"><div class="mc-rank"><b>${rankTxt}</b><span>${subTxt}</span></div>` +
+    `<div class="mc-stats"><div><span>이번 시즌 최고</span><b class="gold">${best ? best + '층' : '기록 없음'}</b></div>` +
+    `<div><span>${on ? '지금 도전 중' : '방금 도전'}</span><b>${on ? rt.endless.floor + '층' : er ? er.floor + '층' : '-'}</b></div></div>` +
+    (above ? `<div class="mc-up">바로 위 ${esc(above.nickname)}님까지 ${Math.max(0, above.floor - me.floor)}층</div>` : '') + '</div>';
   h += on
     ? '<div class="toolbar"><button class="bigbtn" data-act="endless:exit">무한 모드 마치고 스토리 사냥으로</button></div>'
     : '<div class="toolbar"><button class="bigbtn go" data-act="endless:start">무한 모드 도전 (1층부터)</button></div>';
-  h += `<p class="note">끝없이 올라가는 도전이에요. 지금 장비와 능력치 그대로 싸우고, 쓰러지거나 시간이 지나면 1층부터 다시 시작해요. 골드·경험치·장비는 얻지 못해요. ${E.bossEvery}층마다 보스가 나오고, 약점이 드러날 때 스킬을 맞추면 큰 피해를 줘요. ` +
-    `최고 층이 높은 순서로 순위가 정해지고, 같은 층이면 먼저 도달한 사람이 위예요. (${E.minFloor}층부터 순위에 올라요)</p>`;
+  h += `<p class="note">지금 장비와 능력치 그대로 싸우고, 쓰러지거나 시간이 지나면 1층부터 다시 시작해요. 골드·경험치·장비는 얻지 못해요. ${E.bossEvery}층마다 보스가 나오고, 약점이 드러날 때 스킬을 맞추면 큰 피해를 줘요.</p>`;
+  h += `<div class="toolbar"><button class="chip ${UI.showRewards ? 'on' : ''}" data-act="rewardtoggle">🏆 시즌 보상 보기</button></div>`;
+  if (UI.showRewards) {
+    h += `<div class="rewardbox"><p class="note">시즌이 끝나는 순간의 순위로 <b>다음 시즌이 시작될 때</b> 받아요. 무한 모드 ${E.minFloor}층 이상 도달해야 순위에 올라요.</p>`;
+    const mine = me ? rewardForRank(me.rank, d.total) : null;
+    for (const r of E.rewards) h += `<div class="row${mine === r ? ' mine' : ''}"><div class="rn">${rewardLabel(r)}<small>${rewardDesc(r)}</small></div>${mine === r ? '<span class="tag">지금 내 순위</span>' : ''}</div>`;
+    h += `<p class="note">${me ? (mine ? `지금 순위(${me.rank}등)로 시즌이 끝나면 위 보상을 받아요. 순위는 계속 바뀔 수 있어요.` : `지금 순위(${me.rank}등)는 보상 대상이 아니에요. 층을 더 올려 보세요!`) : '순위에 오르면 내가 받을 보상이 표시돼요.'}</p></div>`;
+  }
   h += '<h3>시즌 순위</h3>';
   if (!UI.online) h += '<p class="note">순위표는 서버에 접속했을 때만 볼 수 있어요.</p>';
   else {
-    const R = UI.rank, d = R && R.data;
-    h += `<div class="toolbar"><button class="chip" data-act="endless:refresh">새로고침</button><span class="note">${R && R.busy ? '불러오는 중…' : (R && R.err) || (d ? `참가 ${d.total}명` : '')}</span></div>`;
+    h += `<div class="toolbar"><button class="chip" data-act="endless:refresh">새로고침</button><span class="note">${R && R.busy ? '불러오는 중…' : (R && R.err) || (d ? `참가 ${d.total}명 · 이름을 누르면 장비를 볼 수 있어요` : '')}</span></div>`;
     if (d) {
       if (!d.list.length) h += `<p class="note">아직 순위에 오른 사람이 없어요. ${E.minFloor}층에 처음 도달해 보세요!</p>`;
-      h += '<div class="rankbox">' + d.list.map((r) =>
-        `<div class="rankrow ${r.me ? 'me' : ''} ${r.rank <= 3 ? 'top' + r.rank : ''}" data-act="profile:${r.rank - 1}" style="cursor:pointer" title="눌러서 장비 구경"><span class="rk">${r.rank}</span><span class="nm">${esc(r.nickname)}</span><span class="fl">${r.floor}층</span><span class="wh">${fmtWhen(r.reachedAt)}</span></div>`).join('') + '</div>';
-      if (d.me && !d.list.some((r) => r.me)) h += `<div class="rankrow me"><span class="rk">${d.me.rank}</span><span class="nm">나</span><span class="fl">${d.me.floor}층</span><span class="wh">${fmtWhen(d.me.reachedAt)}</span></div>`;
-      else if (!d.me && s.endless.best) h += `<p class="note">내 기록(${s.endless.best}층)이 아직 순위에 없어요. ${s.endless.best < E.minFloor ? `${E.minFloor}층부터 올라요.` : '잠시 후 저장되면 나타나요.'}</p>`;
+      else {
+        const top = d.list[0].floor || 1, medal = ['🥇', '🥈', '🥉'];
+        h += '<div class="rankhead"><span class="rk">순위</span><span class="nm">이름</span><span class="fl">최고 층</span><span class="wh">도달 시각</span></div><div class="rankbox">' + d.list.map((r) =>
+          `<div class="rankrow ${r.me ? 'me' : ''} ${r.rank <= 3 ? 'top' + r.rank : ''}" data-act="profile:${r.rank - 1}" title="눌러서 장비 구경" style="--w:${Math.max(6, Math.round(r.floor / top * 100))}%"><span class="rk">${r.rank <= 3 ? medal[r.rank - 1] : r.rank}</span><span class="nm">${esc(r.nickname)}${r.me ? ' <em>나</em>' : ''}</span><span class="fl">${r.floor}층</span><span class="wh">${fmtWhen(r.reachedAt)}</span></div>`).join('') + '</div>';
+      }
+      if (me && !d.list.some((r) => r.me)) h += `<div class="rankrow me mine-out"><span class="rk">${me.rank}</span><span class="nm">나 <em>30위 밖</em></span><span class="fl">${me.floor}층</span><span class="wh">${fmtWhen(me.reachedAt)}</span></div>`;
+      else if (!me && best) h += `<p class="note">내 기록(${best}층)이 아직 순위에 없어요. ${best < E.minFloor ? `${E.minFloor}층부터 올라요.` : '잠시 후 저장되면 나타나요.'}</p>`;
     }
   }
   h += profileCard();
-  h += '<h3>시즌 보상</h3><p class="note">시즌이 끝나는 순간의 순위로 다음 시즌 시작 때 받아요.</p>';
-  for (const r of E.rewards) {
-    const who = r.rank ? `${r.rank}등` : `상위 ${Math.round(r.pct * 100)}%`;
-    h += `<div class="row"><div class="rn">${who}<small>영구 포인트 +${r.points}${r.title ? ` · 칭호 '${r.title.label}' (능력치 효과 ${CFG.titleBuffSeasons}시즌)` : ''}</small></div></div>`;
-  }
   return h;
 }
 
@@ -808,6 +865,7 @@ function uiUpdate() {
     const d = Math.floor(left / 86400e3), h = Math.floor(left % 86400e3 / 3600e3);
     $('seasonInfo').textContent = left > 0 ? `${UI.season.name} · ${d > 0 ? d + '일 ' : ''}${h}시간 남음` : UI.season.name;
   } else $('seasonInfo').textContent = '';
+  endlessResultSync(rt);
   $('stageLabel').textContent = (rt.endless ? `무한 ${rt.endless.floor}층 · ${rg.name}` : `${s.hard ? '어려움 ' : ''}${s.region}-${s.round} ${rg.name}`) + (boss ? ` · ${bossName}` : '');
   // 스테이지 진행: 라운드 칸(마지막은 보스) + 이번 라운드 처치 막대
   const need = needKillsRt(rt), killPct = boss ? 100 : Math.min(100, rt.kills / need * 100);

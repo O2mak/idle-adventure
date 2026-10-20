@@ -720,6 +720,9 @@ function failRound(rt, why) {
   const s = rt.save;
   if (rt.endless) {
     const f = rt.endless.floor;
+    // 화면이 결과 카드를 띄울 수 있게 이번 도전 결과를 남김 (n은 도전 횟수)
+    rt.endlessResult = { n: (rt.endlessResult ? rt.endlessResult.n : 0) + 1, floor: f, best: s.endless.best, newBest: !!rt.endlessNewBest, why };
+    rt.endlessNewBest = false;
     rt.endless.floor = 1; rt.endlessFailed = true;
     rt.hp = rt.d.hp; rt.cd = [0, 0, 0, 0];
     resetRound(rt); sfx(rt, 'fail');
@@ -741,7 +744,7 @@ function clearRound(rt) {
     sfx(rt, isEndlessBoss(f - 1) ? 'win' : 'clear');
     if (isEndlessBoss(f - 1)) rt.happyAt = rt.clock;
     if (f > E.best) {
-      E.best = f; E.bestAt = Date.now();
+      E.best = f; E.bestAt = Date.now(); rt.endlessNewBest = true;
       if (f >= CFG.endless.minFloor) msg(rt, `무한 모드 ${f}층 도달! (최고 기록)`, 'ok');
     }
     resetRound(rt);

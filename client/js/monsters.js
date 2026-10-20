@@ -636,6 +636,8 @@ const ART_SET = {
   9: { normal: ['img/mon_9_0.png', 'img/mon_9_1.png'], boss: 'img/mon_9_boss.png', bg: 'img/bg_9.png', near: 'img/near_9.png', nearMirror: true },
   10: { normal: ['img/mon_10_0.png', 'img/mon_10_1.png'], boss: 'img/mon_10_boss.png', bg: 'img/bg_10.png', near: 'img/near_10.png' },
 };
+// 오른쪽을 보고 있는 그림은 좌우로 뒤집어서 캐릭터 쪽(왼쪽)을 보게 함
+const ART_FLIP = new Set(['img/mon_5_0.png', 'img/mon_6_1.png', 'img/mon_6_boss.png', 'img/mon_8_1.png']);
 const _art = {};
 // 그림 파일을 불러와서 준비되면 그림을 돌려줌 (발 아래 투명한 여백은 잘라서 발이 땅에 닿게 함). 아직이면 null
 function artImage(url) {
@@ -644,11 +646,15 @@ function artImage(url) {
     a = _art[url] = { img: new Image(), ready: false, out: null };
     a.img.onload = () => {
       a.ready = true; a.out = a.img;
+      let src = a.img;
+      try {   // 좌우 반전
+        if (ART_FLIP.has(url)) { const f = _mk(a.img.width, a.img.height); f.g.translate(f.w, 0); f.g.scale(-1, 1); f.g.drawImage(a.img, 0, 0); src = f.c; a.out = src; }
+      } catch (e) { src = a.img; }
       try {   // 아래쪽 투명 여백 자르기 (파일을 직접 열었을 때처럼 읽기가 막히면 그대로 사용)
-        const c = _mk(a.img.width, a.img.height); c.g.drawImage(a.img, 0, 0);
+        const c = _mk(src.width, src.height); c.g.drawImage(src, 0, 0);
         const d = c.g.getImageData(0, 0, c.w, c.h).data; let last = -1;
         for (let y = c.h - 1; y >= 0 && last < 0; y--) for (let x = 0; x < c.w; x++) if (d[(y * c.w + x) * 4 + 3] > 20) { last = y; break; }
-        if (last >= 0 && last < c.h - 1) { const o = _mk(c.w, last + 1); o.g.drawImage(a.img, 0, 0); a.out = o.c; }
+        if (last >= 0 && last < c.h - 1) { const o = _mk(c.w, last + 1); o.g.drawImage(src, 0, 0); a.out = o.c; }
       } catch (e) { /* 그대로 사용 */ }
     };
     if (typeof Image !== 'undefined') a.img.src = url;

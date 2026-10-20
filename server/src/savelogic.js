@@ -53,7 +53,8 @@ export function checkEndlessClaim(old, s, elapsedSec) {
   const max = Math.max(1, s.best.region);
   for (const it of Object.values(s.equip).concat(s.inv)) {
     if (!it) continue;
-    if (!Number.isInteger(it.region) || it.region < 1 || it.region > max || it.region < CFG.gradeUnlock[it.grade]) { bad.push('장비 정보가 진행도와 맞지 않아요'); break; }
+    // 합성 장비는 그 등급이 열리는 지역 값을 가지므로(최고 도달 지역보다 클 수 있음) 그 값까지는 정상으로 봄
+    if (!Number.isInteger(it.region) || it.region < 1 || it.region > Math.max(max, CFG.gradeUnlock[it.grade]) || it.region < CFG.gradeUnlock[it.grade]) { bad.push('장비 정보가 진행도와 맞지 않아요'); break; }
     const ex = makeItem({ nextUid: 0 }, it.slot, it.grade, it.region, it.cls).opts, got = it.opts || {};
     const keys = Object.keys(ex);
     if (keys.length !== Object.keys(got).length || keys.some((k) => !isNum(got[k]) || Math.abs(got[k] - ex[k]) > 1e-6 * Math.max(1, Math.abs(ex[k])))) { bad.push('장비 능력치가 올바르지 않아요'); break; }

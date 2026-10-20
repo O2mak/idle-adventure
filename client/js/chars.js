@@ -291,7 +291,7 @@ function heroSprite(t, moving, hurt, animal, swing) {
   if (hurt) return HERO.hurt;
   if (swing > 0.25) { const i = swing > 0.6 ? 1 : 2; at(HERO.attackHand[i]); return HERO.attack[i]; }   // 공격: 내지르기 → 마무리
   if (!moving) return HERO.idle[Math.floor(t * 5) % 8];
-  const i = Math.floor(t * 9) % 6;   // 걷는 동안 손 위치가 프레임마다 달라서 무기도 따라감
+  const i = 5 - Math.floor(t * 9) % 6;   // 걷는 그림이 거꾸로 만들어져 있어서 뒤에서부터 재생. 걷는 동안 손 위치가 프레임마다 달라서 무기도 따라감
   at(HERO.walkHand[i]);
   return HERO.walk[i];
 }
