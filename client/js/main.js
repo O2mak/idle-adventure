@@ -173,7 +173,7 @@
     Sound.load();
     document.body.className = 'mode-' + (function () { try { return localStorage.getItem('idlegame_mode') || 'full'; } catch (e) { return 'full'; } })();
     rt = createRuntime(save);
-    renderer = new Renderer($('view'), $('fx'));
+    renderer = new Renderer($('view'), $('fx')); UI.renderer = renderer;   // 작은 창(영상)이 탭이 뒤로 가도 그릴 수 있게
     uiInit(rt);
     UI.onChange = onUiChange;
     beat();

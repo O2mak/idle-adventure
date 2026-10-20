@@ -125,8 +125,56 @@ function buildSkillbar() {
     `<button class="skill ${sk.special ? 'special' : ''}" data-act="cast:${i}" title="${esc(sk.desc)}"><span class="key">${i + 1}</span><span class="nm">${esc(sk.name)}</span><div class="cdmask"></div><span class="cdtxt"></span></button>`).join('');
 }
 
-// 작은 창(PiP)으로 전투 화면 분리: 크롬/엣지의 Document Picture-in-Picture 기능 사용
+// 작은 창(PiP): 전투 화면을 영상으로 만들어 브라우저의 영상 작은 창에 띄움.
+// 주소창이 없고 닫기/돌아가기 버튼은 마우스를 올렸을 때만 보임. 보기 전용(조작은 원래 창에서)
+// 탭이 뒤로 가면 화면 그리기(requestAnimationFrame)가 멈추므로, 작은 창이 켜져 있는 동안은 Worker가 보내는 박자에 맞춰 그림
+const PIP = { video: null, cv: null, worker: null };
 async function openPip() {
+  if (document.pictureInPictureElement) { await document.exitPictureInPicture().catch(() => {}); return; }
+  if (!document.pictureInPictureEnabled) { openDocPip(); return; }
+  try {
+    const cv = PIP.cv || (PIP.cv = document.createElement('canvas')); cv.width = 1024; cv.height = 576;
+    pipDraw();
+    const v = PIP.video || (PIP.video = document.createElement('video'));
+    v.muted = true; v.playsInline = true; v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;';
+    if (!v.isConnected) document.body.appendChild(v);
+    v.srcObject = cv.captureStream(30);
+    await v.play();
+    if (!PIP.worker) {
+      PIP.worker = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 33)'], { type: 'text/javascript' })));
+      PIP.worker.onmessage = () => { if (document.hidden && UI.renderer) { try { UI.renderer.draw(UI.rt); } catch (e) { /* 다음 박자에 다시 */ } } pipDraw(); };
+    }
+    v.addEventListener('leavepictureinpicture', pipStop, { once: true });
+    await v.requestPictureInPicture();
+  } catch (e) {
+    pipStop();
+    alert('작은 창을 열지 못했어요. (' + e.message + ')');
+  }
+}
+function pipStop() {
+  if (PIP.worker) { PIP.worker.terminate(); PIP.worker = null; }
+  if (PIP.video && PIP.video.srcObject) { PIP.video.srcObject.getTracks().forEach((t) => t.stop()); PIP.video.srcObject = null; }
+}
+// 영상 한 장 그리기: 전투 화면 + 숫자 효과 + 화면 위 글자(스테이지, 골드, 레벨과 체력, 보스 제한시간)
+function pipDraw() {
+  const cv = PIP.cv, rt = UI.rt; if (!cv || !rt) return;
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  g.imageSmoothingEnabled = false;
+  g.drawImage($('view'), 0, 0, W, H);
+  const fx = $('fx'); if (fx && fx.width) g.drawImage(fx, 0, 0, W, H);
+  const txt = (s, x, y, al, size, col) => { if (!s) return; g.font = `bold ${size}px 'Malgun Gothic', sans-serif`; g.textAlign = al; g.lineJoin = 'round'; g.lineWidth = size / 4; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(s, x, y); g.fillStyle = col || '#fff'; g.fillText(s, x, y); };
+  txt($('stageLabel').textContent, 16, 38, 'left', 28);
+  txt($('goldLabel').textContent, W - 16, 38, 'right', 30, '#ffd35a');
+  txt($('bossTimer').textContent, W / 2, 80, 'center', 26);
+  const bw = 320, bh = 24, bx = 16, by = H - 40, r = Math.max(0, Math.min(1, rt.hp / rt.d.hp));
+  g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(bx - 3, by - 3, bw + 6, bh + 6);
+  g.fillStyle = '#2a2f3a'; g.fillRect(bx, by, bw, bh); g.fillStyle = '#4ee06a'; g.fillRect(bx, by, Math.round(bw * r), bh);
+  txt($('hpText').textContent, bx + bw / 2, by + bh - 5, 'center', 19);
+  txt($('hudLv').textContent, bx, by - 12, 'left', 24, '#ffe066');
+}
+
+// 영상 작은 창을 못 쓰는 브라우저용: 크롬/엣지의 Document Picture-in-Picture (주소가 보이지만 조작 가능)
+async function openDocPip() {
   if (UI.pipWin && !UI.pipWin.closed) { UI.pipWin.close(); return; }
   if (!('documentPictureInPicture' in window)) {
     alert('이 브라우저는 작은 창 분리를 지원하지 않습니다. (크롬/엣지 최신 버전에서 사용할 수 있어요)');
