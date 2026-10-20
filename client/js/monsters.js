@@ -633,7 +633,7 @@ const ART_SET = {
   6: { bg: 'img/bg_6.png', near: 'img/near_6.png', nearMirror: true },
   7: { bg: 'img/bg_7.png', near: 'img/near_7.png', nearMirror: true },
   8: { bg: 'img/bg_8.png', near: 'img/near_8.png' },
-  9: { bg: 'img/bg_9.png' },
+  9: { bg: 'img/bg_9.png', near: 'img/near_9.png', nearMirror: true },
   10: { bg: 'img/bg_10.png', near: 'img/near_10.png' },
 };
 const _art = {};
