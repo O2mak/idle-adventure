@@ -182,11 +182,11 @@ const CFG = {
   enabledClasses: ['melee', 'ranged', 'mage'],
   // 직업별 성격: curve=[캐릭터 레벨, 주력 능력치 배율] (전사는 초반에 강하고, 마법사는 후반에 강하게), hp=체력 배율, plain=평타 피해 배율, skill=스킬 피해 배율, range=사거리, stat=쓰는 능력치
   classInfo: {
-    melee: { title: '전사', weapon: '칼', range: 50, hp: 1.3, plain: 1.0, skill: 1.0, stat: 'atk', recommend: true, curve: [[1, 3.2], [24, 4.5], [38, 4.5], [50, 2.3], [70, 1.3], [100, 1.0]],
+    melee: { title: '전사', weapon: '칼', range: 50, spdCap: 1.5, hp: 1.3, plain: 1.0, skill: 1.0, stat: 'atk', recommend: true, curve: [[1, 3.2], [24, 4.5], [38, 4.5], [50, 2.3], [70, 1.3], [100, 1.0]],
       desc: '사거리는 짧지만 몸이 튼튼해요. 처음 시작하기 가장 쉬워요.' },
-    ranged: { title: '궁수', weapon: '활', range: 140, hp: 0.7, plain: 0.9, skill: 0.65, stat: 'atk', recommend: false, curve: [[1, 0.6], [40, 0.65], [60, 0.9], [100, 1.2]],
+    ranged: { title: '궁수', weapon: '활', range: 140, spdCap: 3, hp: 0.7, plain: 0.9, skill: 0.65, stat: 'atk', recommend: false, curve: [[1, 0.6], [40, 0.65], [60, 0.9], [100, 1.2]],
       desc: '멀리서 쏘는 평타가 강해요. 몸은 약해요.' },
-    mage: { title: '마법사', weapon: '스태프', range: 120, hp: 0.7, plain: 0.6, skill: 1.2, stat: 'mag', recommend: false, curve: [[1, 0.38], [40, 0.42], [60, 0.8], [75, 1.0], [100, 1.1]],
+    mage: { title: '마법사', weapon: '스태프', range: 120, spdCap: 1.5, hp: 0.7, plain: 0.6, skill: 1.2, stat: 'mag', recommend: false, curve: [[1, 0.38], [40, 0.42], [60, 0.8], [75, 1.0], [100, 1.1]],
       desc: '스킬이 아주 강하지만 평타는 약해요. 초반에는 조금 어려워요. (마력을 올려요)' },
   },
   swap: { freeUntil: 10, feeMul: 300 }, // 직업(무기) 교체: 캐릭터 Lv.10 미만은 무료, 이후 비용 = 최고 도달 지역 몬스터 골드 x feeMul. 직업이 다른 장비는 보관함으로 가서 새 직업 장비를 다시 맞춰야 함

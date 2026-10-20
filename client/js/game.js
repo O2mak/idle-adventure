@@ -178,9 +178,14 @@ function calcStats(s) {
   hp *= ci.hp; // 직업별 체력 배율 (전사 튼튼, 궁수/마법사 약함)
   const ap = animalPassive(s); if (ap && ap.hpMul) hp *= ap.hpMul;   // 동물 패시브
   hp *= weaponTrait(s).hpMul || 1;   // 전설 무기 특성
-  const spd = P.spd * (1 + spdB);
+  // 공격 속도는 직업마다 상한(spdCap)이 있고, 넘치는 속도는 같은 비율만큼 공격력·마력으로 바뀜 (평타 초당 피해는 그대로).
+  // 스킬 피해는 원래 공격 속도와 무관하므로 conv로 나눠서 예전과 같게 유지함
+  // (전투는 한 틱에 공격을 한 번만 하므로 실제 초당 공격 수는 틱 단위로 내림됨 → 실제 속도 기준으로 환산해야 평타 피해가 예전과 같음)
+  const eff = (v) => 1 / (Math.max(1, Math.ceil(1 / v / CFG.tickDt - 1e-9)) * CFG.tickDt);
+  const rawSpd = P.spd * (1 + spdB), spd = Math.min(rawSpd, ci.spdCap), conv = eff(rawSpd) / eff(spd);
+  atk *= conv; mag *= conv;
   const main = ci.stat === 'mag' ? mag : atk;
-  return { hp, atk, mag, def, spd, main, plain: main * ci.plain };
+  return { hp, atk, mag, def, spd, conv, main, plain: main * ci.plain };
 }
 
 function monStats(region, round, hard) {
@@ -551,7 +556,7 @@ function nearest(rt, range) {
 
 function skillDamage(rt, i) {
   const sk = skillList(rt.save)[i];
-  return rt.d.main * CFG.classInfo[rt.save.weaponType].skill * sk.mult * (1 + CFG.skillUp.per * skillLevelOf(rt.save));
+  return rt.d.main / rt.d.conv * CFG.classInfo[rt.save.weaponType].skill * sk.mult * (1 + CFG.skillUp.per * skillLevelOf(rt.save));
 }
 
 // 날아가는 연출 기록 (화면에서만 사용, 피해는 즉시 적용)
@@ -588,7 +593,7 @@ function castBossSkill(rt) {
   if (!bossSkillReady(rt)) return false;
   const s = rt.save, b = bossSkillOf(s), boss = rt.enemies.find((e) => e.boss);
   if (!boss) return false;
-  const dmg = rt.d.main * CFG.classInfo[s.weaponType].skill * b.mult * (1 + CFG.skillUp.per * skillLevelOf(s));
+  const dmg = rt.d.main / rt.d.conv * CFG.classInfo[s.weaponType].skill * b.mult * (1 + CFG.skillUp.per * skillLevelOf(s));
   if (b.fx) proj(rt, b.fx, boss.x, { hits: b.hits });
   for (let h = 0; h < b.hits; h++) dealDamage(rt, boss, dmg, h === 0 ? b.name : '');
   rt.bossSkillUsed = true; rt.castAt = rt.clock; rt.hitAt = rt.clock; sfx(rt, 'skill');

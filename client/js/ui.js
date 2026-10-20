@@ -360,7 +360,7 @@ function panelGrowth() {
   h += info(mi('sword') + '공격력', `현재 ${fmt(d.atk)} (전사/궁수가 사용)${star('atk')}`);
   h += info(mi('magic') + '마력', `현재 ${fmt(d.mag)} (마법사가 사용)${star('mag')}`);
   h += info(mi('shield') + '방어력', `현재 ${fmt(d.def)}`);
-  h += info(mi('bolt') + '신속', `공격 속도 초당 ${d.spd.toFixed(2)}회`);
+  h += info(mi('bolt') + '신속', `공격 속도 초당 ${d.spd.toFixed(2)}회 (최대 ${CFG.classInfo[s.weaponType].spdCap}회 · 넘치는 속도는 ${CFG.classInfo[s.weaponType].stat === 'mag' ? '마력' : '공격력'}으로 바뀌어요)`);
   const bl2 = burnLeft(s);
   h += `<p class="note">${bl2 > 0 ? `🔥 버닝 타임 진행 중! 남은 ${fmtTime(bl2)} 동안 경험치·골드·장비 드롭률이 ×${CFG.burn.mul}배예요.` : '오늘의 버닝 타임은 끝났어요. 내일 오전 6시에 다시 시작해요.'} (하루 접속 시간 중 처음 ${CFG.burn.sec / 3600}시간)</p>`;
   h += '<h3>사냥 효율</h3>';
