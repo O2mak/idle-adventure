@@ -1,6 +1,7 @@
 // 캔버스 렌더링 (논리 해상도 256x144, CSS로 정수배 확대). 숫자 효과는 별도의 고해상도 캔버스에 그림.
 // 캐릭터(HS)와 몬스터(MS)는 그림을 2배로 키워서 그림 → 그림 한 칸이 화면 한 칸이 되어 배경과 도트 크기가 같아짐
 const HS = 2, MS = 2;
+let BG_ZOOM = 1;   // 배경 그림 확대 배율 (시험 중)
 // 몸집이 커져서 겹치지 않도록, 몬스터는 화면에서만 오른쪽으로 띄워서 그림 (전투 거리·사거리 규칙은 그대로)
 function enemyPad(e) { return e && e.boss ? 52 : 24; }
 class Renderer {
@@ -72,12 +73,14 @@ class Renderer {
     this.g.setTransform(HK, 0, 0, HK, 0, 0); this.g.imageSmoothingEnabled = false;
     const g = this.g, s = rt.save, sr = stageRegion(rt), rg = CFG.regions[sr - 1], L = this.layers(sr), gy = this.V.ground;
     const sc = rt.scroll, bgi = typeof artBackground === 'function' ? artBackground(sr) : null;
-    if (bgi) {   // PixelLab 배경 그림: 좌우를 뒤집어 이어 붙여서 끊김 없이 천천히 흐르게 함
-      const W = this.W, off = (((sc * 0.15) % (W * 2)) + W * 2) % (W * 2), base = Math.floor(off / W), within = off - base * W;
-      for (let i = 0; i < 2; i++) {
-        const x = i * W - within, flip = (base + i) % 2 === 1;
-        if (flip) { g.save(); g.translate(x + W, 0); g.scale(-1, 1); g.drawImage(bgi, 0, 0, W, gy); g.restore(); }
-        else g.drawImage(bgi, x, 0, W, gy);
+    if (bgi) {   // 배경 그림: 좌우를 뒤집어 이어 붙여서 끊김 없이 천천히 흐르게 함. BG_ZOOM배로 키워 땅선 기준으로 그림
+      const z = BG_ZOOM, tw = this.W * z, th = gy * z, ty = gy - th;
+      const off = (((sc * 0.15) % (tw * 2)) + tw * 2) % (tw * 2), base = Math.floor(off / tw), within = off - base * tw;
+      if (z > 1) { g.fillStyle = rg.sky[0]; g.fillRect(0, 0, this.W, gy); }
+      for (let i = 0; i * tw - within < this.W; i++) {
+        const x = i * tw - within, flip = (base + i) % 2 === 1;
+        if (flip) { g.save(); g.translate(x + tw, 0); g.scale(-1, 1); g.drawImage(bgi, 0, ty, tw, th); g.restore(); }
+        else g.drawImage(bgi, x, ty, tw, th);
       }
     } else {
       const grad = g.createLinearGradient(0, 0, 0, gy);
@@ -89,6 +92,9 @@ class Renderer {
       this.tile(L.near, sc * 0.3, gy - 36);
       this.tile(L.trees, sc * 0.6, gy - 50);
     }
+    // 가까운 풍경 띠: 먼 배경보다 빠르게 흘러서 원근감이 생김. 밑동이 땅에 살짝 묻히게 그림
+    const near = typeof artNear === 'function' ? artNear(sr) : null;
+    if (near) this.tile(near, sc * 0.5, gy - near.height + 3);
     this.tile(L.ground, sc, gy);
 
     for (const e of rt.enemies) this.drawEnemy(rt, e, sr);
