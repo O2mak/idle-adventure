@@ -221,7 +221,7 @@ function uiAct(act) {
       break;
     }
     case 'go':
-      if (canEnter(s, Number(b), Number(c), c2 === '1')) { if (rt.endless) exitEndless(rt); setStage(rt, Number(b), Number(c), true, c2 === '1'); }
+      if (canEnter(s, Number(b), Number(c), c2 === '1')) { if (rt.endless) exitEndless(rt); setStage(rt, Number(b), Number(c), true, c2 === '1'); rt.hp = rt.d.hp; }   // 직접 고른 스테이지는 체력을 가득 채우고 시작 (자동으로 다음 라운드로 넘어갈 때는 그대로)
       break;
     case 'endless':
       if (b === 'start') startEndless(rt);
