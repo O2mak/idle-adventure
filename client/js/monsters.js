@@ -663,5 +663,29 @@ function artMonster(region, boss, variant) {
 }
 function artBackground(region) { const set = ART_SET[region]; return set && set.bg ? artImage(set.bg) : null; }
 // 가까운 풍경 띠 (캐릭터 바로 뒤에 깔리는 큰 나무·건물, 가로로 이어 붙여 흐름)
-function artNear(region) { const set = ART_SET[region]; return set && set.near ? artImage(set.near) : null; }
+// 물체끼리 너무 붙어 보이지 않게, 띠 안의 빈 간격을 NEAR_GAP배로 늘린 그림을 만들어 씀 (먼 배경이 더 보이도록)
+const NEAR_GAP = 1.8, _nearSp = {};
+function artNear(region) {
+  const set = ART_SET[region]; if (!set || !set.near) return null;
+  const im = artImage(set.near); if (!im) return null;
+  return _nearSp[set.near] || (_nearSp[set.near] = nearSpread(im, NEAR_GAP));
+}
+function nearSpread(im, k) {
+  try {
+    const W = im.width, H = im.height, c = _mk(W, H); c.g.drawImage(im, 0, 0);
+    const d = c.g.getImageData(0, 0, W, H).data, occ = [];
+    for (let x = 0; x < W; x++) { occ[x] = false; for (let y = 0; y < H; y++) if (d[(y * W + x) * 4 + 3] > 20) { occ[x] = true; break; } }
+    // 물체 덩어리(세로로 무언가 있는 열이 이어진 구간). 6칸보다 좁은 틈은 같은 덩어리로 봄
+    const seg = []; let x = 0;
+    while (x < W) { if (!occ[x]) { x++; continue; } let e = x; while (e < W && (occ[e] || occ.slice(e, e + 6).some(Boolean))) e++; seg.push([x, e]); x = e; }
+    if (seg.length < 2) return im;
+    const gap = (g) => Math.round(g * k + 8);
+    // 새 너비 = 물체들 + 늘린 간격들 + 이어 붙이는 자리의 간격(그림의 왼쪽 끝과 오른쪽 끝 여백을 합친 것)
+    let total = gap(seg[0][0]) + gap(W - seg[seg.length - 1][1]);
+    for (let i = 0; i < seg.length; i++) total += seg[i][1] - seg[i][0] + (i < seg.length - 1 ? gap(seg[i + 1][0] - seg[i][1]) : 0);
+    const out = _mk(total, H); let px = gap(seg[0][0]) >> 1;
+    for (let i = 0; i < seg.length; i++) { const w = seg[i][1] - seg[i][0]; out.g.drawImage(im, seg[i][0], 0, w, H, px, 0, w, H); px += w + (i < seg.length - 1 ? gap(seg[i + 1][0] - seg[i][1]) : 0); }
+    return out.c;
+  } catch (e) { return im; }
+}
 function nearMirror(region) { const set = ART_SET[region]; return !!(set && set.nearMirror); }
