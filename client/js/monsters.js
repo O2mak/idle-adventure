@@ -631,10 +631,10 @@ const ART_SET = {
   4: { normal: ['img/mon_4_0.png', 'img/mon_4_1.png'], boss: 'img/mon_4_boss.png', bg: 'img/bg_4.png', near: 'img/near_4.png' },
   5: { normal: ['img/mon_5_0.png', 'img/mon_5_1.png'], boss: 'img/mon_5_boss.png', bg: 'img/bg_5.png', near: 'img/near_5.png' },
   6: { normal: ['img/mon_6_0.png', 'img/mon_6_1.png'], boss: 'img/mon_6_boss.png', bg: 'img/bg_6.png', near: 'img/near_6.png', nearMirror: true },
-  7: { bg: 'img/bg_7.png', near: 'img/near_7.png', nearMirror: true },
-  8: { bg: 'img/bg_8.png', near: 'img/near_8.png' },
-  9: { bg: 'img/bg_9.png', near: 'img/near_9.png', nearMirror: true },
-  10: { bg: 'img/bg_10.png', near: 'img/near_10.png' },
+  7: { normal: ['img/mon_7_0.png', 'img/mon_7_1.png'], boss: 'img/mon_7_boss.png', bg: 'img/bg_7.png', near: 'img/near_7.png', nearMirror: true },
+  8: { normal: ['img/mon_8_0.png', 'img/mon_8_1.png'], boss: 'img/mon_8_boss.png', bg: 'img/bg_8.png', near: 'img/near_8.png' },
+  9: { normal: ['img/mon_9_0.png', 'img/mon_9_1.png'], boss: 'img/mon_9_boss.png', bg: 'img/bg_9.png', near: 'img/near_9.png', nearMirror: true },
+  10: { normal: ['img/mon_10_0.png', 'img/mon_10_1.png'], boss: 'img/mon_10_boss.png', bg: 'img/bg_10.png', near: 'img/near_10.png' },
 };
 const _art = {};
 // 그림 파일을 불러와서 준비되면 그림을 돌려줌 (발 아래 투명한 여백은 잘라서 발이 땅에 닿게 함). 아직이면 null
